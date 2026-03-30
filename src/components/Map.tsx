@@ -1,6 +1,7 @@
 'use client'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
+// @ts-ignore
 import L from 'leaflet'
 
 // Fix per l'icona del marker (altrimenti non si vede in Next.js)
