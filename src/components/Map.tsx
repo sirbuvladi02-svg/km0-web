@@ -2,94 +2,180 @@
 import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
+import { Store, ShoppingBag, ChevronRight } from 'lucide-react'
 
 // Carichiamo leaflet in modo sicuro per Next.js
 const L: any = typeof window !== 'undefined' ? require('leaflet') : null;
 
-// Fix per l'icona del marker dei prodotti
-const icon = L ? L.icon({ 
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41]
-}) : null;
-
-export default function Map({ locations }: { locations: any[] }) {
-  // Stato per salvare la posizione in cui centrare la mappa
+export default function MapComponent({ locations }: { locations: any[] }) {
   const [center, setCenter] = useState<[number, number] | null>(null);
 
   useEffect(() => {
-    // Opzioni per forzare il browser a essere super preciso col GPS
-    const gpsOptions = {
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 0
-    };
-
+    const gpsOptions = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          // GPS riuscito: centriamo sull'utente
-          setCenter([position.coords.latitude, position.coords.longitude]);
-        },
-        (error) => {
-          console.warn("GPS ignorato o fallito, uso Verona come default.", error);
-          // Fallback: Se rifiuta il GPS o fallisce, andiamo a Verona
-          setCenter([45.438, 10.991]);
-        },
-        gpsOptions // Le nostre opzioni speciali passate qui!
+        (position) => setCenter([position.coords.latitude, position.coords.longitude]),
+        () => setCenter([45.438, 10.991]),
+        gpsOptions
       );
     } else {
-      // Se il browser è vecchissimo e non ha il GPS
       setCenter([45.438, 10.991]);
     }
   }, []);
 
-  // Aspettiamo di avere le coordinate (GPS o Fallback) prima di disegnare la mappa,
-  // altrimenti React-Leaflet va in confusione col centro dinamico.
   if (!L || !center) {
     return (
-      <div className="h-full w-full bg-neutral-100 animate-pulse flex items-center justify-center">
-        <span className="text-neutral-500 font-medium">Ricerca posizione in corso...</span>
+      <div className="h-full w-full bg-green-50 animate-pulse flex items-center justify-center">
+        <span className="text-green-700 font-bold uppercase tracking-widest text-sm">Caricamento Mappa Premium...</span>
       </div>
     );
   }
 
-  // Trasformiamo TUTTI i componenti in "any" per zittire TypeScript una volta per tutte
+  // 🔥 LA MAGIA: Raggruppiamo i prodotti per Contadino (user_id) o per coordinate
+  const farmersMap = new Map();
+  locations?.forEach((loc: any) => {
+    if (!loc.lat || !loc.lng) return;
+    
+    // Raggruppiamo per user_id. Se manca, usiamo le coordinate come "ID"
+    const key = loc.user_id || `${loc.lat}-${loc.lng}`;
+    
+    if (!farmersMap.has(key)) {
+      farmersMap.set(key, {
+        id: key,
+        lat: loc.lat,
+        lng: loc.lng,
+        products: []
+      });
+    }
+    farmersMap.get(key).products.push(loc);
+  });
+  
+  // Trasformiamo la mappa in un array per poterlo ciclare
+  const farmers = Array.from(farmersMap.values());
+
   const MapComp = MapContainer as any;
   const TileLayerComp = TileLayer as any;
   const MarkerComp = Marker as any;
   const PopupComp = Popup as any;
 
+  // MARKER AZIENDA CON BADGE NUMERICO
+  const createFarmerMarker = (farmer: any) => {
+    const productCount = farmer.products.length;
+    // Generiamo una foto "fattoria" casuale per l'avatar, basata sulle coordinate per mantenerla fissa
+    const seed = Math.abs(Math.floor(farmer.lat * 1000));
+    const avatarUrl = `https://loremflickr.com/150/150/farm,landscape/all?lock=${seed}`;
+
+    return L.divIcon({
+      className: 'bg-transparent border-none',
+      html: `
+        <div class="relative flex items-center justify-center w-16 h-16 group cursor-pointer">
+          <div class="absolute w-full h-full bg-green-500 rounded-full animate-ping opacity-20 group-hover:opacity-40 transition-opacity"></div>
+          
+          <div class="relative z-10 w-14 h-14 bg-white border-[3px] border-green-600 rounded-full shadow-xl overflow-hidden group-hover:scale-105 transition-transform duration-300">
+            <img src="${avatarUrl}" alt="Azienda" class="w-full h-full object-cover" />
+          </div>
+
+          <div class="absolute -top-1 -right-1 z-20 bg-red-500 text-white text-[12px] font-black w-6 h-6 flex items-center justify-center rounded-full shadow-lg border-2 border-white animate-bounce">
+            ${productCount}
+          </div>
+        </div>
+      `,
+      iconSize: [64, 64],
+      iconAnchor: [32, 32],
+      popupAnchor: [0, -28]
+    });
+  };
+
   return (
-    <div className="h-full w-full overflow-hidden">
-      <MapComp 
-        center={center} 
-        zoom={11} 
-        style={{ height: '100%', width: '100%' }}
-        scrollWheelZoom={false}
-      >
+    <div className="h-full w-full overflow-hidden relative rounded-[3rem] bg-neutral-100">
+      
+      {/* CSS PER IL POPUP VETRINA (Largo, sfocato e scorrevole) */}
+      <style dangerouslySetInnerHTML={{__html: `
+        .leaflet-popup-content-wrapper {
+          background: rgba(255, 255, 255, 0.90) !important;
+          backdrop-filter: blur(16px) !important;
+          -webkit-backdrop-filter: blur(16px) !important;
+          border-radius: 1.5rem !important;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+          padding: 0 !important;
+          border: 1px solid rgba(255, 255, 255, 0.5);
+          overflow: hidden;
+        }
+        .leaflet-popup-content { margin: 0 !important; width: 320px !important; }
+        .leaflet-popup-tip { background: rgba(255, 255, 255, 0.90) !important; }
+        .leaflet-control-attribution { display: none !important; }
+        
+        /* Custom Scrollbar per la lista prodotti */
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+      `}} />
+
+      <MapComp center={center} zoom={13} style={{ height: '100%', width: '100%' }} scrollWheelZoom={false}>
         <TileLayerComp 
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" 
-          attribution='&copy; OpenStreetMap contributors'
+          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" 
+          attribution='&copy; CartoDB'
         />
         
-        {/* Renderizziamo i prodotti passati dal database */}
-        {locations?.map((loc: any) => {
-          // Controllo di sicurezza: disegna il marker solo se lat e lng esistono
-          if (!loc.lat || !loc.lng) return null;
-          
-          return (
-            <MarkerComp key={loc.id} position={[loc.lat, loc.lng]} icon={icon}>
-              <PopupComp>
-                <div className="p-1">
-                  <h3 className="font-bold text-green-700 uppercase tracking-tight">{loc.product_name}</h3>
-                  <p className="text-sm font-bold text-neutral-600">Prezzo: €{loc.price}</p>
+        {/* Renderizziamo un marker per ogni CONTADINO (che contiene N prodotti) */}
+        {farmers.map((farmer: any) => (
+          <MarkerComp key={farmer.id} position={[farmer.lat, farmer.lng]} icon={createFarmerMarker(farmer)}>
+            <PopupComp>
+              <div className="flex flex-col max-h-[400px]">
+                
+                {/* HEADER POPUP */}
+                <div className="bg-green-700 p-4 text-white rounded-t-[1.5rem] relative overflow-hidden shrink-0">
+                  <div className="absolute -right-4 -top-4 opacity-10">
+                    <Store className="w-24 h-24" />
+                  </div>
+                  <h3 className="font-black text-xl leading-none relative z-10">Azienda Agricola</h3>
+                  <p className="text-green-200 font-bold text-xs uppercase tracking-widest mt-1 relative z-10 flex items-center gap-1">
+                    <ShoppingBag className="w-3 h-3" /> {farmer.products.length} Prodotti
+                  </p>
                 </div>
-              </PopupComp>
-            </MarkerComp>
-          )
-        })}
+
+                {/* LISTA PRODOTTI SCORREVOLE */}
+                <div className="p-3 overflow-y-auto custom-scroll flex flex-col gap-2">
+                  {farmer.products.map((product: any, index: number) => {
+                    // Generiamo l'immagine del prodotto in base alla categoria
+                    const safeCategory = product.category || 'farm';
+                    const defaultImgUrl = `https://loremflickr.com/150/150/${safeCategory},food/all?lock=${product.id || index}`;
+                    const imgUrl = product.image_url || defaultImgUrl;
+            
+                    return (
+                      <div key={product.id || index} className="flex items-center gap-3 p-2 rounded-xl hover:bg-neutral-50 border border-transparent hover:border-neutral-100 transition-colors group cursor-pointer">
+                        {/* Immagine Prodotto */}
+                        <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 shadow-sm">
+                          <img src={imgUrl} alt={product.product_name} className="w-full h-full object-cover" />
+                        </div>
+                        
+                        {/* Info Prodotto */}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-bold text-neutral-900 truncate text-sm">{product.product_name}</h4>
+                          <span className="text-xs font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-md inline-block mt-0.5">
+                            €{product.price} / kg
+                          </span>
+                        </div>
+
+                        {/* Freccetta hover */}
+                        <ChevronRight className="w-4 h-4 text-neutral-300 group-hover:text-green-600 transition-colors shrink-0" />
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* BOTTONE CONTATTA */}
+                <div className="p-3 border-t border-neutral-100 shrink-0 bg-white/50">
+                  <button className="w-full bg-neutral-900 text-white font-bold py-3 rounded-xl text-sm shadow-md hover:bg-neutral-800 transition-transform active:scale-95 uppercase tracking-widest">
+                    Contatta Produttore
+                  </button>
+                </div>
+
+              </div>
+            </PopupComp>
+          </MarkerComp>
+        ))}
       </MapComp>
     </div>
   )
