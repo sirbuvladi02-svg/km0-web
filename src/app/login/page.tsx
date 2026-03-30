@@ -7,6 +7,7 @@ import Link from 'next/link'
 
 function LoginForm() {
   const searchParams = useSearchParams()
+  const router = useRouter() // <-- Aggiunto router di Next.js
   
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -50,17 +51,14 @@ function LoginForm() {
       if (error) {
         alert("Errore registrazione: " + error.message)
       } else {
-        // --- NUOVA LOGICA: Controllo account esistente ---
-        // Se identities è vuoto, significa che l'email esiste già nel DB
         if (data.user?.identities?.length === 0) {
           alert("Questo account esiste già! Ti riporto alla pagina di accesso.")
         } else {
           alert("Registrazione completata! Ora puoi accedere.")
         }
         
-        // --- PULIZIA E SWITCH ---
-        setIsSignUp(false) // Torna alla schermata di Login
-        setEmail('')       // Svuota i campi
+        setIsSignUp(false)
+        setEmail('')
         setPassword('')
         setFullName('')
       }
@@ -77,7 +75,13 @@ function LoginForm() {
           .eq('id', authData.user.id)
           .single();
 
-        window.location.href = profile?.role === 'farmer' ? '/farmer/dashboard' : '/';
+        // --- NUOVA LOGICA: Uso di useRouter per una navigazione più fluida ---
+        if (profile?.role === 'farmer') {
+          router.push('/farmer/dashboard');
+        } else {
+          router.push('/');
+        }
+        router.refresh(); // Forza l'aggiornamento dei dati sulla pagina
       }
     }
     setLoading(false)

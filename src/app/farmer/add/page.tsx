@@ -10,11 +10,17 @@ export default function AddProduct() {
   const [price, setPrice] = useState('')
   const [loading, setLoading] = useState(false)
   const [coords, setCoords] = useState({ lat: 45.4642, lng: 9.1900 }) // Default: Milano
-  const [geoStatus, setGeoStatus] = useState('Rilevamento posizione...')
+  const [geoStatus, setGeoStatus] = useState('Rilevamento posizione in corso...')
   const router = useRouter()
 
-  // 1. Chiediamo la posizione all'utente appena apre la pagina
+  // 1. Chiediamo la posizione all'utente con Alta Precisione
   useEffect(() => {
+    const gpsOptions = {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    };
+
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -22,12 +28,16 @@ export default function AddProduct() {
             lat: position.coords.latitude,
             lng: position.coords.longitude
           })
-          setGeoStatus('Posizione rilevata con successo!')
+          setGeoStatus('Posizione GPS acquisita con successo!')
         },
-        () => {
+        (error) => {
+          console.warn("Errore GPS: ", error);
           setGeoStatus('Posizione non trovata (usiamo Milano di default)')
-        }
+        },
+        gpsOptions
       )
+    } else {
+      setGeoStatus('Il tuo browser non supporta il GPS')
     }
   }, [])
 
@@ -35,7 +45,7 @@ export default function AddProduct() {
     e.preventDefault()
     setLoading(true)
 
-    // 2. RECUPERIAMO L'UTENTE LOGGATO (Parte fondamentale per farlo "fatto bene")
+    // 2. RECUPERIAMO L'UTENTE LOGGATO
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -52,7 +62,7 @@ export default function AddProduct() {
         price: parseFloat(price), 
         lat: coords.lat, 
         lng: coords.lng,
-        user_id: user.id // <--- Colleghiamo il prodotto a chi lo sta creando
+        user_id: user.id 
       }
     ])
 
@@ -84,7 +94,7 @@ export default function AddProduct() {
           </div>
           <h2 className="text-4xl font-black text-neutral-900 tracking-tight">Vendi Prodotto</h2>
           <div className="flex items-center justify-center gap-2 mt-3 text-green-600 font-bold text-xs bg-green-50 py-2 px-4 rounded-full w-fit mx-auto">
-            <MapPin className="w-4 h-4" /> {geoStatus}
+            <MapPin className="w-4 h-4 shrink-0" /> <span className="truncate max-w-[200px]">{geoStatus}</span>
           </div>
         </div>
 
