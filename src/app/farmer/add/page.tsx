@@ -63,7 +63,7 @@ export default function AddProduct() {
       return;
     }
 
-    let uploadedImageUrl = null;
+    let uploadedImageUrl: string | null = null;
 
     // 🔥 MAGIA DELLO STORAGE: Carichiamo l'immagine se è stata selezionata
     if (imageFile) {
