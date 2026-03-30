@@ -138,16 +138,18 @@ export default function MapComponent({ locations }: { locations: any[] }) {
                 {/* LISTA PRODOTTI SCORREVOLE */}
                 <div className="p-3 overflow-y-auto custom-scroll flex flex-col gap-2">
                   {farmer.products.map((product: any, index: number) => {
-                    // Generiamo l'immagine del prodotto in base alla categoria
-                    const safeCategory = product.category || 'farm';
-                    const defaultImgUrl = `https://loremflickr.com/150/150/${safeCategory},food/all?lock=${product.id || index}`;
-                    const imgUrl = product.image_url || defaultImgUrl;
-            
+                    // Usiamo SOLO l'immagine reale, niente fallback di LoremFlickr
+                    const imgUrl = product.image_url;
+
                     return (
                       <div key={product.id || index} className="flex items-center gap-3 p-2 rounded-xl hover:bg-neutral-50 border border-transparent hover:border-neutral-100 transition-colors group cursor-pointer">
-                        {/* Immagine Prodotto */}
-                        <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 shadow-sm">
-                          <img src={imgUrl} alt={product.product_name} className="w-full h-full object-cover" />
+                        {/* Immagine Prodotto o Spazio Bianco */}
+                        <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 shadow-sm border border-neutral-100 bg-white flex items-center justify-center">
+                          {imgUrl ? (
+                            <img src={imgUrl} alt={product.product_name} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-[10px] text-neutral-300 font-bold uppercase tracking-widest">N/D</span>
+                          )}
                         </div>
                         
                         {/* Info Prodotto */}
@@ -165,11 +167,11 @@ export default function MapComponent({ locations }: { locations: any[] }) {
                   })}
                 </div>
 
-                {/* BOTTONE CONTATTA */}
+                {/* BOTTONE CONTATTA (ORA VERDE!) */}
                 <div className="p-3 border-t border-neutral-100 shrink-0 bg-white/50">
-                  <button className="w-full bg-neutral-900 text-white font-bold py-3 rounded-xl text-sm shadow-md hover:bg-neutral-800 transition-transform active:scale-95 uppercase tracking-widest">
-                    Contatta Produttore
-                  </button>
+                  <a href={`/farmer/${farmer.id}`} className="block w-full bg-green-700 !text-white text-center font-bold py-3 rounded-xl text-sm shadow-md hover:bg-green-800 transition-transform active:scale-95 uppercase tracking-widest no-underline">
+                  Visita la sua Vetrina
+                  </a>
                 </div>
 
               </div>
