@@ -1,20 +1,37 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
-import { Store, ShoppingBag, ChevronRight } from 'lucide-react'
+import { Store, ShoppingBag, ChevronRight, Navigation, ChevronDown } from 'lucide-react'
 import TractorLoader from './TractorLoader'
 import { supabase } from '@/lib/supabase'
 
-// Carichiamo leaflet in modo sicuro per Next.js (Questo sta FUORI dal componente)
+// Carichiamo leaflet in modo sicuro per Next.js
 const L: any = typeof window !== 'undefined' ? require('leaflet') : null;
 
+// Funzione simpatica per assegnare un'emoji automatica in base alla categoria
+const getCategoryIcon = (category: string) => {
+  if (!category) return '🛒';
+  const lower = category.toLowerCase();
+  if (lower.includes('frutt') || lower.includes('fruit')) return '🍎';
+  if (lower.includes('verdur') || lower.includes('ortagg')) return '🥦';
+  if (lower.includes('carn') || lower.includes('salum') || lower.includes('meat')) return '🥩';
+  if (lower.includes('formagg') || lower.includes('latt')) return '🧀';
+  if (lower.includes('miel') || lower.includes('honey')) return '🍯';
+  if (lower.includes('uov') || lower.includes('egg')) return '🥚';
+  if (lower.includes('vin') || lower.includes('birr')) return '🍷';
+  if (lower.includes('olio')) return '🫒';
+  if (lower.includes('pan') || lower.includes('farin')) return '🍞';
+  return '🌱'; // Default
+}
+
 export default function MapComponent({ locations }: { locations: any[] }) {
-  // 1. STATI (Tutti DENTRO il componente)
   const [center, setCenter] = useState<[number, number] | null>(null);
   const [farmerProfiles, setFarmerProfiles] = useState<Record<string, any>>({});
+  
+  // STATO PER IL FILTRO
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  // 2. EFFETTO GPS
   useEffect(() => {
     const gpsOptions = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
     if ("geolocation" in navigator) {
@@ -28,7 +45,6 @@ export default function MapComponent({ locations }: { locations: any[] }) {
     }
   }, []);
 
-  // 3. EFFETTO PROFILI (Scarica nomi e avatar)
   useEffect(() => {
     async function loadProfiles() {
       if (!locations || locations.length === 0) return;
@@ -45,7 +61,19 @@ export default function MapComponent({ locations }: { locations: any[] }) {
     loadProfiles();
   }, [locations]);
 
-  // 4. SCHERMATA DI CARICAMENTO CON TRATTORE
+  // ESTRAIAMO LE CATEGORIE DINAMICAMENTE (Ignorando i null)
+  const availableCategories = useMemo(() => {
+    if (!locations) return [];
+    const categories = Array.from(new Set(locations.map(loc => loc.category).filter(Boolean))) as string[];
+    return categories.sort();
+  }, [locations]);
+
+  // FILTRIAMO I PRODOTTI
+  const filteredLocations = useMemo(() => {
+    if (!selectedCategory) return locations;
+    return locations.filter(loc => loc.category === selectedCategory);
+  }, [locations, selectedCategory]);
+
   if (!L || !center) {
     return (
       <div className="h-full w-full bg-[#F0F7F0] flex flex-col items-center justify-center rounded-[3rem] shadow-inner border-4 border-white">
@@ -54,11 +82,10 @@ export default function MapComponent({ locations }: { locations: any[] }) {
     );
   }
 
-  // 5. RAGGRUPPAMENTO PRODOTTI PER CONTADINO
+  // RAGGRUPPIAMO I PRODOTTI FILTRATI PER CONTADINO
   const farmersMap = new Map();
-  locations?.forEach((loc: any) => {
+  filteredLocations?.forEach((loc: any) => {
     if (!loc.lat || !loc.lng) return;
-    
     const key = loc.user_id || `${loc.lat}-${loc.lng}`;
     
     if (!farmersMap.has(key)) {
@@ -74,12 +101,10 @@ export default function MapComponent({ locations }: { locations: any[] }) {
   const MarkerComp = Marker as any;
   const PopupComp = Popup as any;
 
-  // 6. CREAZIONE MARKER PERSONALIZZATO
   const createFarmerMarker = (farmer: any) => {
     const productCount = farmer.products.length;
     const profile = farmerProfiles[farmer.id];
     
-    // Usiamo l'avatar caricato, oppure un'elegante iniziale verde se non lo ha ancora caricato
     const avatarUrl = profile?.avatar_url || `https://ui-avatars.com/api/?name=${profile?.farm_name || profile?.full_name || 'F'}&background=15803d&color=fff&size=150`;
 
     return L.divIcon({
@@ -103,13 +128,37 @@ export default function MapComponent({ locations }: { locations: any[] }) {
     });
   };
 
-  // 7. RENDER DELLA MAPPA
   return (
-    <div className="h-full w-full overflow-hidden relative rounded-[3rem] bg-neutral-100">
+    <div className="h-full w-full overflow-hidden relative rounded-[3rem] bg-neutral-100 z-0 border-4 border-white shadow-sm">
       
+      {/* 🟢 NUOVO MENU A TENDINA (In alto a destra, non dà fastidio al popup) */}
+      <div className="absolute top-4 right-4 z-[1000] pointer-events-auto">
+        <div className="relative bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-neutral-100 p-1 flex items-center group hover:shadow-xl transition-shadow">
+          
+          {/* L'emoji cambia in base a cosa selezioni */}
+          <div className="pl-3 pr-2 py-2 border-r border-neutral-100 flex items-center justify-center">
+            <span className="text-xl leading-none">{selectedCategory ? getCategoryIcon(selectedCategory) : '🌍'}</span>
+          </div>
+          
+          <select
+            value={selectedCategory || ''}
+            onChange={(e) => setSelectedCategory(e.target.value || null)}
+            className="bg-transparent font-black text-neutral-700 outline-none appearance-none cursor-pointer py-2 pl-3 pr-8 w-40 capitalize text-sm"
+          >
+            <option value="">Tutti i Prodotti</option>
+            {availableCategories.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="w-4 h-4 text-green-700 absolute right-3 pointer-events-none group-hover:translate-y-0.5 transition-transform" />
+        </div>
+      </div>
+
       <style dangerouslySetInnerHTML={{__html: `
         .leaflet-popup-content-wrapper {
-          background: rgba(255, 255, 255, 0.90) !important;
+          background: rgba(255, 255, 255, 0.95) !important;
           backdrop-filter: blur(16px) !important;
           -webkit-backdrop-filter: blur(16px) !important;
           border-radius: 1.5rem !important;
@@ -119,25 +168,23 @@ export default function MapComponent({ locations }: { locations: any[] }) {
           overflow: hidden;
         }
         .leaflet-popup-content { margin: 0 !important; width: 320px !important; }
-        .leaflet-popup-tip { background: rgba(255, 255, 255, 0.90) !important; }
+        .leaflet-popup-tip { background: rgba(255, 255, 255, 0.95) !important; }
         .leaflet-control-attribution { display: none !important; }
-        
-        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-track { background: transparent; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
-        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
       `}} />
 
-      <MapComp center={center} zoom={13} style={{ height: '100%', width: '100%' }} scrollWheelZoom={false}>
+      <MapComp center={center} zoom={13} style={{ height: '100%', width: '100%', zIndex: 1 }} scrollWheelZoom={false}>
         <TileLayerComp 
           url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" 
-          attribution='&copy; CartoDB'
+          attribution='© CartoDB'
         />
         
         {farmers.map((farmer: any) => (
           <MarkerComp key={farmer.id} position={[farmer.lat, farmer.lng]} icon={createFarmerMarker(farmer)}>
             <PopupComp>
-              <div className="flex flex-col max-h-[400px]">
+              <div className="flex flex-col max-h-[420px]">
                 
                 {/* HEADER POPUP */}
                 <div className="bg-green-700 p-4 text-white rounded-t-[1.5rem] relative overflow-hidden shrink-0">
@@ -148,7 +195,7 @@ export default function MapComponent({ locations }: { locations: any[] }) {
                     {farmerProfiles[farmer.id]?.farm_name || farmerProfiles[farmer.id]?.full_name || 'Azienda Agricola'}
                   </h3>
                   <p className="text-green-200 font-bold text-xs uppercase tracking-widest mt-1 relative z-10 flex items-center gap-1">
-                    <ShoppingBag className="w-3 h-3" /> {farmer.products.length} Prodotti
+                    <ShoppingBag className="w-3 h-3" /> {farmer.products.length} {selectedCategory ? `di ${selectedCategory}` : 'Prodotti'}
                   </p>
                 </div>
 
@@ -163,27 +210,39 @@ export default function MapComponent({ locations }: { locations: any[] }) {
                           {imgUrl ? (
                             <img src={imgUrl} alt={product.product_name} className="w-full h-full object-cover" />
                           ) : (
-                            <span className="text-[10px] text-neutral-300 font-bold uppercase tracking-widest">N/D</span>
+                            <span className="text-xl">{getCategoryIcon(product.category || '')}</span>
                           )}
                         </div>
                         
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-bold text-neutral-900 truncate text-sm">{product.product_name}</h4>
+                          <h4 className="font-bold text-neutral-900 truncate text-sm capitalize">{product.product_name}</h4>
                           <span className="text-xs font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-md inline-block mt-0.5">
                             €{product.price} / kg
                           </span>
                         </div>
-
                         <ChevronRight className="w-4 h-4 text-neutral-300 group-hover:text-green-600 transition-colors shrink-0" />
                       </div>
                     )
                   })}
                 </div>
 
-                {/* BOTTONE VETRINA */}
-                <div className="p-3 border-t border-neutral-100 shrink-0 bg-white/50">
-                  <a href={`/farmer/${farmer.id}`} className="block w-full bg-green-700 !text-white text-center font-bold py-3 rounded-xl text-sm shadow-md hover:bg-green-800 transition-transform active:scale-95 uppercase tracking-widest no-underline">
-                    Visita la sua Vetrina
+                {/* 🧭 DOPPIO BOTTONE RIPARATO (Ora apre il navigatore vero) */}
+                <div className="p-3 border-t border-neutral-100 shrink-0 bg-white/50 flex gap-2">
+                  <a 
+                    // IL LINK ORA È CORRETTO: Crea un percorso fino alle coordinate del contadino
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${farmer.lat},${farmer.lng}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex-1 bg-neutral-100 text-neutral-700 text-center font-bold py-3 rounded-xl text-xs shadow-sm hover:bg-neutral-200 transition-transform active:scale-95 flex flex-col items-center justify-center gap-1 no-underline border border-neutral-200"
+                  >
+                    <Navigation className="w-4 h-4" /> Portami Qui
+                  </a>
+                  
+                  <a 
+                    href={`/farmer/${farmer.id}`} 
+                    className="flex-[1.5] bg-green-700 !text-white text-center font-black py-3 rounded-xl text-sm shadow-md hover:bg-green-800 transition-transform active:scale-95 flex items-center justify-center uppercase tracking-widest no-underline"
+                  >
+                    Vetrina
                   </a>
                 </div>
 
