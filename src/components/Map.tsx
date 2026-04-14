@@ -1,6 +1,7 @@
 'use client'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
+import SponsorCard from './SponsorCard'
 
 // Carichiamo leaflet in modo sicuro per Next.js
 const L: any = typeof window !== 'undefined' ? require('leaflet') : null;
@@ -37,9 +38,16 @@ export default function Map({ locations }: { locations: any[] }) {
         {locations?.map((loc: any) => (
           <MarkerComp key={loc.id} position={[loc.lat, loc.lng]} icon={icon}>
             <PopupComp>
-              <div className="p-1">
-                <h3 className="font-bold text-green-700 uppercase tracking-tight">{loc.product_name}</h3>
-                <p className="text-sm font-bold text-neutral-600">Prezzo: €{loc.price}</p>
+              <div className="p-1 min-w-[200px]">
+                <SponsorCard
+                  imageUrl="https://images.unsplash.com/photo-1500937386664-56d1dfef3854?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200"
+                  title="Azienda Agricola Demo"
+                  description="Prodotti biologici coltivati con passione sulle colline veronesi dal 1985."
+                />
+                <div className="mt-3 pt-3 border-t border-neutral-200">
+                  <h3 className="font-bold text-green-700 uppercase tracking-tight text-sm">{loc.product_name}</h3>
+                  <p className="text-xs font-bold text-neutral-600 mt-1">Prezzo: €{loc.price}</p>
+                </div>
               </div>
             </PopupComp>
           </MarkerComp>
