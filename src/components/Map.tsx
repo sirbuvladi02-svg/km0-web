@@ -3,8 +3,6 @@ import { useEffect, useState, useMemo } from 'react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 
-import SponsorCard from './SponsorCard'
-
 import { Store, ShoppingBag, ChevronRight, Navigation, ChevronDown } from 'lucide-react'
 import TractorLoader from './TractorLoader'
 import { supabase } from '@/lib/supabase'
@@ -190,15 +188,6 @@ export default function MapComponent({ locations }: { locations: any[] }) {
             <PopupComp>
 
               <div className="flex flex-col max-h-[420px]">
-                {/* SPONSOR CARD - Integrata nel nuovo design */}
-                <div className="mx-3 mt-3">
-                  <SponsorCard
-                    imageUrl="https://images.unsplash.com/photo-1500937386664-56d1dfef3854?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200"
-                    title="Azienda Agricola Demo"
-                    description="Prodotti biologici coltivati con passione sulle colline veronesi dal 1985."
-                  />
-                </div>
-
                 {/* HEADER POPUP */}
                 <div className="bg-green-700 p-4 text-white rounded-t-[1.5rem] relative overflow-hidden shrink-0">
                   <div className="absolute -right-4 -top-4 opacity-10">
