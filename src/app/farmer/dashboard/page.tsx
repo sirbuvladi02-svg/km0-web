@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { 
   LayoutDashboard, PlusCircle, ShoppingBasket, 
-  Trash2, Package, Loader2, Sprout, LogOut, ArrowLeft 
+  Trash2, Package, Loader2, Sprout, LogOut, ArrowLeft, User
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -45,7 +45,6 @@ export default function FarmerDashboard() {
     if (error) {
       alert("Errore durante l'eliminazione: " + error.message)
     } else {
-      // Aggiorna la lista togliendo il prodotto rimosso senza ricaricare la pagina
       setProducts((prev) => prev.filter((p) => p.id !== id))
     }
   }
@@ -90,11 +89,25 @@ export default function FarmerDashboard() {
         </header>
 
         <div className="grid lg:grid-cols-3 gap-8">
-          <Link href="/farmer/add" className="bg-green-700 p-8 rounded-[2.5rem] text-white flex flex-col items-center justify-center shadow-xl hover:bg-green-800 transition-all group">
-            <PlusCircle className="w-16 h-16 mb-4 group-hover:scale-110 transition-transform" />
-            <h2 className="text-2xl font-black uppercase tracking-tighter text-center leading-none">Aggiungi Prodotto</h2>
-          </Link>
+          
+          {/* MENU AZIONI A SINISTRA */}
+          <div className="flex flex-col gap-6">
+            
+            {/* Tasto Aggiungi Prodotto */}
+            <Link href="/farmer/add" className="bg-green-700 p-8 rounded-[2.5rem] text-white flex flex-col items-center justify-center shadow-xl hover:bg-green-800 transition-all group flex-1 min-h-[200px]">
+              <PlusCircle className="w-14 h-14 mb-4 group-hover:scale-110 transition-transform" />
+              <h2 className="text-2xl font-black uppercase tracking-tighter text-center leading-none">Aggiungi<br/>Prodotto</h2>
+            </Link>
 
+            {/* Tasto Profilo Azienda */}
+            <Link href="/farmer/profile" className="bg-white border-2 border-neutral-100 p-8 rounded-[2.5rem] text-neutral-700 flex flex-col items-center justify-center shadow-xl hover:border-green-500 hover:text-green-700 transition-all group flex-1 min-h-[200px]">
+              <User className="w-14 h-14 mb-4 text-neutral-300 group-hover:text-green-600 group-hover:scale-110 transition-transform" />
+              <h2 className="text-2xl font-black uppercase tracking-tighter text-center leading-none">Profilo<br/>Azienda</h2>
+            </Link>
+
+          </div>
+
+          {/* LISTA PRODOTTI */}
           <div className="lg:col-span-2 bg-white p-8 rounded-[2.5rem] shadow-xl border border-neutral-100">
             <div className="flex items-center justify-between mb-8 border-b border-neutral-100 pb-4">
               <h2 className="text-2xl font-black text-neutral-900 uppercase italic">I Miei Prodotti</h2>
