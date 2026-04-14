@@ -3,7 +3,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 
-import { Store, ShoppingBag, ChevronRight, Navigation, ChevronDown } from 'lucide-react'
+import { Store, ShoppingBag, ChevronRight, Navigation, ChevronDown, Search } from 'lucide-react'
 import TractorLoader from './TractorLoader'
 import { supabase } from '@/lib/supabase'
 
@@ -33,6 +33,9 @@ export default function MapComponent({ locations }: { locations: any[] }) {
   
   // STATO PER IL FILTRO
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  // STATO PER LA RICERCA
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   useEffect(() => {
     const gpsOptions = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
@@ -70,11 +73,26 @@ export default function MapComponent({ locations }: { locations: any[] }) {
     return categories.sort();
   }, [locations]);
 
-  // FILTRIAMO I PRODOTTI
+  // FILTRIAMO I PRODOTTI (per categoria e ricerca testuale)
   const filteredLocations = useMemo(() => {
-    if (!selectedCategory) return locations;
-    return locations.filter(loc => loc.category === selectedCategory);
-  }, [locations, selectedCategory]);
+    let filtered = locations;
+    
+    // Filtro per categoria
+    if (selectedCategory) {
+      filtered = filtered.filter(loc => loc.category === selectedCategory);
+    }
+    
+    // Filtro per ricerca testuale
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(loc => 
+        (loc.product_name?.toLowerCase().includes(query)) ||
+        (loc.category?.toLowerCase().includes(query))
+      );
+    }
+    
+    return filtered;
+  }, [locations, selectedCategory, searchQuery]);
 
   if (!L || !center) {
     return (
@@ -133,9 +151,31 @@ export default function MapComponent({ locations }: { locations: any[] }) {
   return (
     <div className="h-full w-full overflow-hidden relative rounded-[3rem] bg-neutral-100 z-0 border-4 border-white shadow-sm">
       
-      {/* 🟢 NUOVO MENU A TENDINA (In alto a destra, non dà fastidio al popup) */}
-      <div className="absolute top-4 right-4 z-[1000] pointer-events-auto">
-        <div className="relative bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-neutral-100 p-1 flex items-center group hover:shadow-xl transition-shadow">
+      {/* � BARRA DI RICERCA E FILTRO */}
+      <div className="absolute top-4 right-4 z-[1000] pointer-events-auto flex flex-col gap-3">
+        
+        {/* Barra di ricerca */}
+        <div className="relative bg-white/80 backdrop-blur-md rounded-full shadow-lg border border-neutral-100 px-4 py-2.5 flex items-center gap-3 min-w-[280px]">
+          <Search className="w-5 h-5 text-green-600 shrink-0" />
+          <input
+            type="text"
+            placeholder="Cerca prodotti o categorie..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="bg-transparent outline-none text-sm font-medium text-neutral-700 placeholder:text-neutral-400 w-full"
+          />
+          {searchQuery && (
+            <button 
+              onClick={() => setSearchQuery('')}
+              className="text-neutral-400 hover:text-neutral-600 text-xs font-bold shrink-0"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        {/* Menu a tendina categorie */}
+        <div className="relative bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-neutral-100 p-1 flex items-center group hover:shadow-xl transition-shadow self-end">
           
           {/* L'emoji cambia in base a cosa selezioni */}
           <div className="pl-3 pr-2 py-2 border-r border-neutral-100 flex items-center justify-center">
