@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, MapPin, Store, MessageCircle, Mail, ImagePlus, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -154,8 +154,15 @@ export default function FarmerProfile() {
           </div>
         </div>
 
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <h2 className="text-2xl font-black text-neutral-900">I nostri prodotti ({products.length})</h2>
+          <button 
+            onClick={() => router.back()}
+            className="flex items-center gap-2 bg-green-50 text-green-700 px-4 py-2.5 rounded-xl font-bold hover:bg-green-100 transition-all border border-green-200"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Torna alla Mappa
+          </button>
         </div>
 
         {products.length === 0 ? (
