@@ -7,6 +7,7 @@ import Link from 'next/link'
 
 export default function FarmerProfile() {
   const params = useParams()
+  const router = useRouter()
   const id = params.id as string
   
   const [profile, setProfile] = useState<any>(null)
