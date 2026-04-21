@@ -22,19 +22,54 @@ export default function FarmerProfile() {
     async function loadFarmerData() {
       if (!id) return;
 
-      // 1. Controlliamo chi sta guardando la pagina
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) setCurrentUserId(user.id);
+      try {
+        // 1. Controlliamo chi sta guardando la pagina ( Buyer o Farmer )
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          setCurrentUserId(user.id);
+          console.log('[Vetrina] Utente corrente:', user.id, 'Ruolo:', user.user_metadata?.role || 'non definito');
+        } else {
+          console.log('[Vetrina] Utente non autenticato - accesso pubblico');
+        }
 
-      // 2. Recuperiamo i dati del contadino
-      const { data: profileData } = await supabase.from('profiles').select('*').eq('id', id).single();
-      setProfile(profileData || { full_name: 'Azienda Agricola' });
+        // 2. Recuperiamo i dati del contadino
+        const { data: profileRows, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', id)
+          .limit(1);
 
-      // 3. Recuperiamo i prodotti
-      const { data: productsData } = await supabase.from('products').select('*').eq('user_id', id);
-      setProducts(productsData || []);
-      
-      setLoading(false);
+        const profileData = profileRows?.[0] || null;
+
+        if (profileError) {
+          console.error('[Vetrina] Errore caricamento profilo:', profileError);
+        }
+
+        if (!profileData) {
+          console.warn('[Vetrina] Profilo non trovato per id:', id, '- mostro pagina generica');
+          setProfile({ full_name: 'Azienda Agricola', id: id });
+        } else {
+          console.log('[Vetrina] Profilo caricato:', profileData.farm_name || profileData.full_name);
+          setProfile(profileData);
+        }
+
+        // 3. Recuperiamo i prodotti (accessibile a tutti: Buyer, Farmer, o anonimi)
+        const { data: productsData, error: productsError } = await supabase
+          .from('products')
+          .select('*')
+          .eq('user_id', id);
+        
+        if (productsError) {
+          console.error('[Vetrina] Errore caricamento prodotti:', productsError);
+        }
+        
+        console.log('[Vetrina] Prodotti caricati:', productsData?.length || 0);
+        setProducts(productsData || []);
+      } catch (error) {
+        console.error('[Vetrina] Errore generale:', error);
+      } finally {
+        setLoading(false);
+      }
     }
 
     loadFarmerData();

@@ -27,9 +27,13 @@ export async function middleware(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-  const isFarmerRoute = request.nextUrl.pathname.startsWith('/farmer')
+  const path = request.nextUrl.pathname
 
-  if (isFarmerRoute) {
+  // Pagine farmer che richiedono autenticazione e ruolo farmer
+  const protectedFarmerPaths = ['/farmer/dashboard', '/farmer/add', '/farmer/profile']
+  const isProtectedFarmerRoute = protectedFarmerPaths.some(p => path === p || path.startsWith(p + '/'))
+
+  if (isProtectedFarmerRoute) {
     if (!user) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
@@ -40,7 +44,6 @@ export async function middleware(request: NextRequest) {
       .eq('id', user.id)
       .single()
 
-    // Se l'utente è loggato ma non è un farmer, lo rispediamo in home
     if (profile && profile.role !== 'farmer') {
       return NextResponse.redirect(new URL('/', request.url))
     }

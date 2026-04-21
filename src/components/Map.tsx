@@ -5,7 +5,7 @@ import 'leaflet/dist/leaflet.css'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-import { Store, ShoppingBag, ChevronRight, Navigation, ChevronDown, Search, Map as MapIcon, LayoutList, Phone, Heart } from 'lucide-react'
+import { Store, ShoppingBag, ChevronRight, Navigation, ChevronDown, Search, Map as MapIcon, LayoutList, Phone, Heart, SlidersHorizontal, X } from 'lucide-react'
 import TractorLoader from './TractorLoader'
 import { supabase } from '@/lib/supabase'
 import Toast from './Toast'
@@ -79,6 +79,9 @@ export default function MapComponent({ locations }: { locations: any[] }) {
   // STATO PER LA VISUALIZZAZIONE (mappa o lista)
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
 
+  // STATO PER IL PANNELLO FILTRO
+  const [filterOpen, setFilterOpen] = useState(false);
+
   // STATO PER I PREFERITI
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -131,26 +134,32 @@ export default function MapComponent({ locations }: { locations: any[] }) {
     loadUserAndFavorites();
   }, []);
 
+  // Helper: ottiene il vero user_id di un farmer (dai prodotti o fallback a farmer.id)
+  const getFarmerRealId = (farmer: any): string => {
+    return farmer.products?.find((p: any) => p.user_id)?.user_id || farmer.id;
+  };
+
   // Funzione per toggle preferito
-  const toggleFavorite = async (farmerId: string) => {
+  const toggleFavorite = async (farmerObj: any) => {
     if (!currentUser) {
       showToast('Accedi per salvare i preferiti', 'info');
       return;
     }
 
-    const isFavorite = favorites.has(farmerId);
-    
+    const realFarmerId = getFarmerRealId(farmerObj);
+    const isFavorite = favorites.has(realFarmerId);
+
     if (isFavorite) {
       // Rimuovi dai preferiti
       await supabase
         .from('favorites')
         .delete()
         .eq('user_id', currentUser.id)
-        .eq('farmer_id', farmerId);
-      
+        .eq('farmer_id', realFarmerId);
+
       setFavorites(prev => {
         const next = new Set(prev);
-        next.delete(farmerId);
+        next.delete(realFarmerId);
         return next;
       });
       showToast('Rimosso dai preferiti', 'info');
@@ -158,9 +167,9 @@ export default function MapComponent({ locations }: { locations: any[] }) {
       // Aggiungi ai preferiti
       await supabase
         .from('favorites')
-        .insert({ user_id: currentUser.id, farmer_id: farmerId });
-      
-      setFavorites(prev => new Set(prev).add(farmerId));
+        .insert({ user_id: currentUser.id, farmer_id: realFarmerId });
+
+      setFavorites(prev => new Set(prev).add(realFarmerId));
       showToast('Aggiunto ai preferiti!', 'favorite');
     }
   };
@@ -236,7 +245,8 @@ export default function MapComponent({ locations }: { locations: any[] }) {
   // RAGGRUPPIAMO I PRODOTTI FILTRATI PER CONTADINO
   const farmersMap = new Map();
   filteredLocations?.forEach((loc: any) => {
-    if (!loc.lat || !loc.lng) return;
+    // Salta prodotti senza coordinate valide
+    if (!loc.lat || !loc.lng || isNaN(loc.lat) || isNaN(loc.lng)) return;
     const key = loc.user_id || `${loc.lat}-${loc.lng}`;
     
     if (!farmersMap.has(key)) {
@@ -246,6 +256,9 @@ export default function MapComponent({ locations }: { locations: any[] }) {
   });
   
   const farmers = Array.from(farmersMap.values());
+
+  // DEBUG: Log per verificare allineamento ricerca/marker
+  console.log('[Map] Ricerca:', searchQuery, '| Categoria:', selectedCategory, '| Prodotti filtrati:', filteredLocations.length, '| Farmers unici:', farmers.length);
 
   const MapComp = MapContainer as any;
   const TileLayerComp = TileLayer as any;
@@ -257,84 +270,121 @@ export default function MapComponent({ locations }: { locations: any[] }) {
     const profile = farmerProfiles[farmer.id];
     
     const avatarUrl = profile?.avatar_url || `https://ui-avatars.com/api/?name=${profile?.farm_name || profile?.full_name || 'F'}&background=15803d&color=fff&size=150`;
+    const farmName = profile?.farm_name || profile?.full_name || 'Azienda';
 
+    // NUOVO: Pin stile Google Maps con SVG
     return L.divIcon({
-      className: 'bg-transparent border-none',
+      className: 'custom-farmer-marker bg-transparent border-none',
       html: `
-        <div class="relative flex items-center justify-center w-16 h-16 group cursor-pointer">
-          <div class="absolute w-full h-full bg-green-500 rounded-full animate-ping opacity-20 group-hover:opacity-40 transition-opacity"></div>
-          
-          <div class="relative z-10 w-14 h-14 bg-white border-[3px] border-green-600 rounded-full shadow-xl overflow-hidden group-hover:scale-105 transition-transform duration-300">
-            <img src="${avatarUrl}" alt="Azienda" class="w-full h-full object-cover" />
+        <div class="marker-pin-wrapper relative flex flex-col items-center cursor-pointer group" data-farmer-id="${farmer.id}" title="${farmName}">
+          <!-- PIN SVG stile Google Maps -->
+          <div class="relative">
+            <svg width="48" height="56" viewBox="0 0 48 56" fill="none" xmlns="http://www.w3.org/2000/svg" class="drop-shadow-lg">
+              <!-- Pin shape -->
+              <path d="M24 0C10.745 0 0 10.745 0 24c0 5.5 1.9 10.6 5.1 14.7L24 56l18.9-17.3C46.1 34.6 48 29.5 48 24 48 10.745 37.255 0 24 0z" fill="#16a34a"/>
+              <!-- Pin border -->
+              <path d="M24 2C12.402 2 2 12.402 2 24c0 4.8 1.6 9.2 4.3 12.8L24 52.8l17.7-16C44.4 33.2 46 28.8 46 24 46 12.402 35.598 2 24 2z" fill="#15803d"/>
+              <!-- Inner circle background -->
+              <circle cx="24" cy="22" r="14" fill="white"/>
+            </svg>
+            
+            <!-- Avatar inside pin -->
+            <div class="absolute top-[6px] left-[8px] w-8 h-8 rounded-full overflow-hidden border-2 border-white shadow-sm">
+              <img src="${avatarUrl}" alt="${farmName}" class="w-full h-full object-cover" />
+            </div>
+            
+            <!-- Pulse animation on pin -->
+            <div class="absolute top-[6px] left-[8px] w-8 h-8 rounded-full bg-green-500 animate-ping opacity-20"></div>
           </div>
-
-          <div class="absolute -top-1 -right-1 z-20 bg-red-500 text-white text-[12px] font-black w-6 h-6 flex items-center justify-center rounded-full shadow-lg border-2 border-white animate-bounce">
+          
+          <!-- Badge conteggio prodotti -->
+          <div class="absolute -top-1 -right-2 z-20 bg-red-500 text-white text-[11px] font-black w-6 h-6 flex items-center justify-center rounded-full shadow-lg border-2 border-white animate-bounce">
             ${productCount}
+          </div>
+          
+          <!-- Label nome azienda (opzionale, visibile su hover) -->
+          <div class="mt-1 px-2 py-0.5 bg-white/90 backdrop-blur-sm rounded-full shadow-md border border-neutral-200 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap max-w-[120px] truncate text-[10px] font-bold text-neutral-700">
+            ${farmName}
           </div>
         </div>
       `,
-      iconSize: [64, 64],
-      iconAnchor: [32, 32],
-      popupAnchor: [0, -28]
+      iconSize: [48, 72],
+      iconAnchor: [24, 56],
+      popupAnchor: [0, -56]
     });
   };
 
   return (
     <div className="h-full w-full overflow-hidden relative rounded-[2rem] bg-neutral-100 z-0 border-4 border-white shadow-lg">
       
-      {/* 🔍 SEARCH CONTAINER - Glassmorphism avanzato, z-400 per permettere popup sopra */}
-      {/* SEARCH CONTAINER - Visibile solo in home page e quando popup chiuso */}
-      <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-[400] pointer-events-auto w-[95%] max-w-[420px] transition-all duration-300 ease-out ${!isHomePage ? 'opacity-0 pointer-events-none translate-y-[-100%]' : ''} ${isPopupOpen ? 'opacity-0 pointer-events-none translate-y-[-100%]' : 'opacity-100 translate-y-0'}`}>
+      {/* 🔍 SEARCH CONTAINER - Glassmorphism avanzato, z-700 per stare sopra la mappa ma sotto i popup */}
+      {/* BUG FIX: nascosta anche in vista elenco (viewMode === 'list') */}
+      <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-[700] pointer-events-auto w-[95%] max-w-[420px] transition-all duration-300 ease-out ${!isHomePage || viewMode === 'list' ? 'opacity-0 pointer-events-none translate-y-[-100%]' : ''} ${isPopupOpen ? 'opacity-0 pointer-events-none translate-y-[-100%]' : 'opacity-100 translate-y-0'}`}>
         <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-neutral-200/60 p-3 flex flex-col gap-2">
-          
-          {/* Barra di ricerca - minimalista */}
-          <div className="relative bg-neutral-50 rounded-xl border border-neutral-200 px-3 py-2.5 flex items-center gap-2">
-            <Search className="w-4 h-4 text-neutral-500 shrink-0" />
-            <input
-              type="text"
-              placeholder="Cerca prodotti o aziende..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-transparent outline-none text-sm text-neutral-800 placeholder:text-neutral-400 w-full"
-            />
-            {searchQuery && (
-              <button 
-                onClick={() => setSearchQuery('')}
-                className="text-neutral-400 hover:text-neutral-600 text-xs font-bold shrink-0 w-7 h-7 flex items-center justify-center rounded-full hover:bg-neutral-100 transition"
-              >
-                ✕
-              </button>
-            )}
+
+          {/* Barra di ricerca + icona filtro */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1 bg-neutral-50 rounded-xl border border-neutral-200 px-3 py-2.5 flex items-center gap-2">
+              <Search className="w-4 h-4 text-neutral-500 shrink-0" />
+              <input
+                type="text"
+                placeholder="Cerca prodotti o aziende..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="bg-transparent outline-none text-sm text-neutral-800 placeholder:text-neutral-400 w-full"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="text-neutral-400 hover:text-neutral-600 text-xs font-bold shrink-0 w-7 h-7 flex items-center justify-center rounded-full hover:bg-neutral-100 transition"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Icona filtro */}
+            <button
+              onClick={() => setFilterOpen(!filterOpen)}
+              className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all border ${
+                selectedCategory || filterOpen
+                  ? 'bg-green-600 border-green-600 text-white'
+                  : 'bg-neutral-50 border-neutral-200 text-neutral-500 hover:bg-neutral-100'
+              }`}
+              title="Filtra per categoria"
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+            </button>
           </div>
 
-          {/* Filtri categoria - scrollabili con gradienti laterali */}
-          <div className="relative">
-            <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto no-scrollbar px-0.5 py-1">
+          {/* Pannello filtro categorie - aperto al click dell'icona */}
+          {filterOpen && (
+            <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-neutral-100">
               {/* Bottone "Tutti" */}
               <button
-                onClick={() => setSelectedCategory(null)}
+                onClick={() => { setSelectedCategory(null); setFilterOpen(false); }}
                 className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap ${
-                  selectedCategory === null 
-                    ? 'bg-green-700 text-white shadow-sm' 
+                  selectedCategory === null
+                    ? 'bg-green-700 text-white shadow-sm'
                     : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
                 }`}
               >
                 <span className="text-xs">🌍</span>
-                <span className="hidden sm:inline">Tutti</span>
+                <span>Tutti</span>
               </button>
-              
-              {/* Pills categorie - eleganti con ombre colorate */}
+
+              {/* Pills categorie */}
               {availableCategories.map((cat) => {
                 const isHighlighted = matchedCategory?.toLowerCase() === cat.toLowerCase();
                 const isSelected = selectedCategory === cat;
-                
+
                 return (
                   <button
                     key={cat}
-                    onClick={() => setSelectedCategory(isSelected ? null : cat)}
+                    onClick={() => { setSelectedCategory(isSelected ? null : cat); setFilterOpen(false); }}
                     className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap ${
-                      isSelected 
-                        ? 'bg-green-700 text-white shadow-sm' 
+                      isSelected
+                        ? 'bg-green-700 text-white shadow-sm'
                         : isHighlighted
                           ? 'bg-amber-100 text-amber-800 border border-amber-200'
                           : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
@@ -347,31 +397,28 @@ export default function MapComponent({ locations }: { locations: any[] }) {
                 );
               })}
             </div>
+          )}
 
-            {/* Gradienti laterali per indicare scroll */}
-            <div className="absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-white to-transparent pointer-events-none rounded-l-2xl"></div>
-            <div className="absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-l from-white to-transparent pointer-events-none rounded-r-2xl"></div>
-            
-            {/* Messaggio categoria evidenziata - più discreto */}
-            {matchedCategory && !selectedCategory && (
-              <div className="text-[10px] text-amber-700 bg-amber-50/80 px-2 py-1 rounded-full font-medium flex items-center gap-1">
-                <span>💡</span>
-                <span>Tocca "{matchedCategory}" per filtrare</span>
-              </div>
-            )}
-
-            {/* Counter risultati - minimal */}
-            <div className="flex justify-center">
-              <span className="text-[10px] font-medium text-neutral-500">
-                {farmers.length} {farmers.length === 1 ? 'azienda trovata' : 'aziende trovate'}
-              </span>
+          {/* Messaggio categoria evidenziata - più discreto */}
+          {matchedCategory && !selectedCategory && !filterOpen && (
+            <div className="text-[10px] text-amber-700 bg-amber-50/80 px-2 py-1 rounded-full font-medium flex items-center gap-1">
+              <span>💡</span>
+              <span>Tocca "{matchedCategory}" per filtrare</span>
             </div>
+          )}
+
+          {/* Counter risultati - minimal */}
+          <div className="flex justify-center">
+            <span className="text-[10px] font-medium text-neutral-500">
+              {farmers.length} {farmers.length === 1 ? 'azienda trovata' : 'aziende trovate'}
+            </span>
           </div>
         </div>
       </div>
 
       <style dangerouslySetInnerHTML={{__html: `
-        .leaflet-popup-content-wrapper {
+        .leaflet-popup { z-index: 1000 !important; }
+        .leaflet-popup-pane { z-index: 1000 !important; }\n        .leaflet-popup-content-wrapper {
           background: rgba(255, 255, 255, 0.98) !important;
           backdrop-filter: blur(20px) !important;
           -webkit-backdrop-filter: blur(20px) !important;
@@ -469,13 +516,28 @@ export default function MapComponent({ locations }: { locations: any[] }) {
 
                   {/* BOTTONI RISTRUTTURATI - Vetrina CTA primario, Portami Qui secondario + Cuore */}
                   <div className="p-4 border-t border-neutral-100 shrink-0 bg-white flex gap-2">
-                    <Link 
-                      href={`/farmer/${farmer.id}`} 
-                      className="flex-[2] bg-green-600 text-white text-center font-bold py-3.5 rounded-2xl text-sm shadow-lg shadow-green-500/25 hover:bg-green-700 hover:shadow-green-500/40 transition-all active:scale-95 flex items-center justify-center gap-2 no-underline"
-                    >
-                      <Store className="w-4 h-4" />
-                      Vetrina
-                    </Link>
+                    {(() => {
+                      // FIX: usa user_id dal primo prodotto valido, altrimenti farmer.id
+                      const farmerUserId = farmer.products.find((p: any) => p.user_id)?.user_id || farmer.id;
+                      const isValidId = farmerUserId && farmerUserId.length >= 8 && !farmerUserId.includes(',');
+                      return isValidId ? (
+                        <Link
+                          href={`/farmer/${farmerUserId}`}
+                          className="flex-[2] bg-green-600 text-white text-center font-bold py-3.5 rounded-2xl text-sm shadow-lg shadow-green-500/25 hover:bg-green-700 hover:shadow-green-500/40 transition-all active:scale-95 flex items-center justify-center gap-2 no-underline"
+                        >
+                          <Store className="w-4 h-4" />
+                          Vetrina
+                        </Link>
+                      ) : (
+                        <button
+                          disabled
+                          className="flex-[2] bg-neutral-200 text-neutral-400 text-center font-bold py-3.5 rounded-2xl text-sm cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                          <Store className="w-4 h-4" />
+                          Vetrina N/D
+                        </button>
+                      );
+                    })()}
                     
                     <a 
                       href={`https://www.google.com/maps/dir/?api=1&destination=${farmer.lat},${farmer.lng}`} 
@@ -489,15 +551,15 @@ export default function MapComponent({ locations }: { locations: any[] }) {
                     
                     {/* Bottone Preferiti nel Popup */}
                     <button
-                      onClick={() => toggleFavorite(farmer.id)}
+                      onClick={() => toggleFavorite(farmer)}
                       className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all active:scale-95 border ${
-                        favorites.has(farmer.id)
+                        favorites.has(getFarmerRealId(farmer))
                           ? 'bg-red-50 border-red-200 text-red-500'
                           : 'bg-neutral-50 border-neutral-200 text-neutral-400 hover:text-red-400'
                       }`}
-                      title={favorites.has(farmer.id) ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}
+                      title={favorites.has(getFarmerRealId(farmer)) ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}
                     >
-                      <Heart className={`w-5 h-5 ${favorites.has(farmer.id) ? 'fill-current' : ''}`} />
+                      <Heart className={`w-5 h-5 ${favorites.has(getFarmerRealId(farmer)) ? 'fill-current' : ''}`} />
                     </button>
                   </div>
 
@@ -541,15 +603,15 @@ export default function MapComponent({ locations }: { locations: any[] }) {
                           
                           {/* Cuore Preferiti - Lista */}
                           <button
-                            onClick={() => toggleFavorite(farmer.id)}
+                            onClick={() => toggleFavorite(farmer)}
                             className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95 ${
-                              favorites.has(farmer.id)
+                              favorites.has(getFarmerRealId(farmer))
                                 ? 'bg-red-50 text-red-500'
                                 : 'bg-neutral-100 text-neutral-400 hover:text-red-400'
                             }`}
-                            title={favorites.has(farmer.id) ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}
+                            title={favorites.has(getFarmerRealId(farmer)) ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}
                           >
-                            <Heart className={`w-5 h-5 ${favorites.has(farmer.id) ? 'fill-current' : ''}`} />
+                            <Heart className={`w-5 h-5 ${favorites.has(getFarmerRealId(farmer)) ? 'fill-current' : ''}`} />
                           </button>
                         </div>
                         
@@ -615,13 +677,27 @@ export default function MapComponent({ locations }: { locations: any[] }) {
 
                   {/* BOTTONI AZIONE */}
                   <div className="p-4 sm:p-5 border-t border-neutral-100 flex gap-3">
-                    <Link 
-                      href={`/farmer/${farmer.id}`} 
-                      className="flex-[2] bg-green-600 text-white text-center font-bold py-3.5 rounded-2xl text-sm shadow-lg shadow-green-500/25 hover:bg-green-700 hover:shadow-green-500/40 transition-all active:scale-95 flex items-center justify-center gap-2 no-underline"
-                    >
-                      <Store className="w-4 h-4" />
-                      Vedi Vetrina
-                    </Link>
+                    {(() => {
+                      const farmerUserId = farmer.products.find((p: any) => p.user_id)?.user_id || farmer.id;
+                      const isValidId = farmerUserId && farmerUserId.length >= 8 && !farmerUserId.includes(',');
+                      return isValidId ? (
+                        <Link
+                          href={`/farmer/${farmerUserId}`}
+                          className="flex-[2] bg-green-600 text-white text-center font-bold py-3.5 rounded-2xl text-sm shadow-lg shadow-green-500/25 hover:bg-green-700 hover:shadow-green-500/40 transition-all active:scale-95 flex items-center justify-center gap-2 no-underline"
+                        >
+                          <Store className="w-4 h-4" />
+                          Vedi Vetrina
+                        </Link>
+                      ) : (
+                        <button
+                          disabled
+                          className="flex-[2] bg-neutral-200 text-neutral-400 text-center font-bold py-3.5 rounded-2xl text-sm cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                          <Store className="w-4 h-4" />
+                          Vetrina N/D
+                        </button>
+                      );
+                    })()}
                     
                     {phone ? (
                       <a 
@@ -666,7 +742,7 @@ export default function MapComponent({ locations }: { locations: any[] }) {
       {/* FAB TOGGLE - Floating Action Button in basso a destra */}
       <button
         onClick={() => setViewMode(viewMode === 'map' ? 'list' : 'map')}
-        className="absolute bottom-6 right-6 z-[500] w-14 h-14 bg-white rounded-full shadow-2xl border border-neutral-100 flex items-center justify-center hover:scale-110 active:scale-95 transition-all group"
+        className="absolute bottom-6 right-6 z-[900] w-14 h-14 bg-white rounded-full shadow-2xl border border-neutral-100 flex items-center justify-center hover:scale-110 active:scale-95 transition-all group"
         title={viewMode === 'map' ? 'Vista Lista' : 'Vista Mappa'}
       >
         {viewMode === 'map' ? (

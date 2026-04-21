@@ -27,7 +27,7 @@ interface FavoriteWithProfile {
     phone: string | null
     whatsapp: string | null
     bio: string | null
-  }
+  } | null
 }
 
 export default function BuyerDashboard() {
@@ -47,29 +47,48 @@ export default function BuyerDashboard() {
       }
       setUser(user)
 
-      // Carica preferiti con i profili dei farmer
-      const { data: favData } = await supabase
+      // Carica preferiti
+      const { data: favData, error: favError } = await supabase
         .from('favorites')
-        .select(`
-          id,
-          farmer_id,
-          created_at,
-          profiles!favorites_farmer_id_fkey (
-            id,
-            full_name,
-            farm_name,
-            avatar_url,
-            phone,
-            whatsapp,
-            bio
-          )
-        `)
+        .select('id, farmer_id, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
-      if (favData) {
-        setFavorites(favData as any)
+      if (favError) {
+        console.error('[BuyerDashboard] Errore caricamento preferiti:', favError)
       }
+
+      console.log('[BuyerDashboard] Preferiti caricati:', favData?.length || 0, 'IDs:', favData?.map(f => f.farmer_id))
+
+      // Carica profili separatamente per ogni farmer_id
+      let enrichedFavorites: any[] = []
+      if (favData && favData.length > 0) {
+        const farmerIds = [...new Set(favData.map(f => f.farmer_id).filter(Boolean))]
+        let profilesMap: Record<string, any> = {}
+
+        if (farmerIds.length > 0) {
+          const { data: profilesData, error: profError } = await supabase
+            .from('profiles')
+            .select('*')
+            .in('id', farmerIds)
+
+          if (profError) {
+            console.error('[BuyerDashboard] Errore caricamento profili:', profError)
+          }
+
+          if (profilesData) {
+            profilesMap = Object.fromEntries(profilesData.map(p => [p.id, p]))
+            console.log('[BuyerDashboard] Profili trovati:', Object.keys(profilesMap))
+          }
+        }
+
+        enrichedFavorites = favData.map(fav => ({
+          ...fav,
+          profiles: profilesMap[fav.farmer_id] || null
+        }))
+      }
+
+      setFavorites(enrichedFavorites)
 
       // Carica storico contatti (simulato - in produzione usare tabella contact_history)
       const { data: contacts } = await supabase

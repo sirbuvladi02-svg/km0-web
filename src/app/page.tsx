@@ -59,7 +59,9 @@ export default function App() {
                       <LayoutDashboard className="w-3.5 h-3.5" /> Dashboard
                     </Link>
                   ) : (
-                    <span className="text-sm font-bold text-neutral-800 uppercase tracking-tight">{user.email?.split('@')[0]}</span>
+                    <Link href="/buyer/dashboard" className="text-sm font-bold text-green-700 hover:text-green-800 transition-colors flex items-center gap-1">
+                      <LayoutDashboard className="w-3.5 h-3.5" /> Dashboard
+                    </Link>
                   )}
                 </div>
                 <button onClick={handleLogout} className="bg-neutral-100 text-neutral-500 p-2.5 rounded-full hover:bg-red-50 hover:text-red-600 transition shadow-sm">
@@ -94,11 +96,11 @@ export default function App() {
                 >
                   <Sprout className="w-5 h-5 mr-2" /> Sono un Contadino
                 </Link>
-                <Link 
-                  href={user ? "#map" : "/login?role=buyer"} 
+                <Link
+                  href={user ? "/buyer/dashboard" : "/login?role=buyer"}
                   className="border-2 border-green-700 text-green-700 hover:bg-green-50 px-8 py-5 rounded-2xl text-lg font-bold flex items-center justify-center transition shadow-sm"
                 >
-                  <ShoppingBag className="w-5 h-5 mr-2" /> Sono un Buyer
+                  <ShoppingBag className="w-5 h-5 mr-2" /> {user ? 'La Mia Dashboard' : 'Sono un Buyer'}
                 </Link>
               </div>
             </div>
