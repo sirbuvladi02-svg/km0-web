@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
 import { Store, ShoppingBag, ChevronRight, Navigation, ChevronDown, Search, Map as MapIcon, LayoutList, Phone, Heart } from 'lucide-react'
 import TractorLoader from './TractorLoader'
@@ -88,6 +89,13 @@ export default function MapComponent({ locations }: { locations: any[] }) {
     type: 'success',
     visible: false
   });
+
+  // STATO PER POPUP APERTO (Focus Mode)
+  const [isPopupOpen, setIsPopupOpen] = useState(false);
+
+  // PATHNAME per visibilità condizionale
+  const pathname = usePathname();
+  const isHomePage = pathname === '/';
 
   useEffect(() => {
     const gpsOptions = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
@@ -275,18 +283,19 @@ export default function MapComponent({ locations }: { locations: any[] }) {
     <div className="h-full w-full overflow-hidden relative rounded-[2rem] bg-neutral-100 z-0 border-4 border-white shadow-lg">
       
       {/* 🔍 SEARCH CONTAINER - Glassmorphism avanzato, z-400 per permettere popup sopra */}
-      <div className="absolute top-6 right-6 z-[400] pointer-events-auto">
-        <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/40 p-5 flex flex-col gap-4 min-w-[340px]">
+      {/* SEARCH CONTAINER - Visibile solo in home page e quando popup chiuso */}
+      <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-[400] pointer-events-auto w-[95%] max-w-[420px] transition-all duration-300 ease-out ${!isHomePage ? 'opacity-0 pointer-events-none translate-y-[-100%]' : ''} ${isPopupOpen ? 'opacity-0 pointer-events-none translate-y-[-100%]' : 'opacity-100 translate-y-0'}`}>
+        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-neutral-200/60 p-3 flex flex-col gap-2">
           
-          {/* Barra di ricerca elegante */}
-          <div className="relative bg-white/90 rounded-2xl shadow-sm border border-neutral-200 px-4 py-3.5 flex items-center gap-3">
-            <Search className="w-5 h-5 text-green-600 shrink-0" />
+          {/* Barra di ricerca - minimalista */}
+          <div className="relative bg-neutral-50 rounded-xl border border-neutral-200 px-3 py-2.5 flex items-center gap-2">
+            <Search className="w-4 h-4 text-neutral-500 shrink-0" />
             <input
               type="text"
               placeholder="Cerca prodotti o aziende..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-transparent outline-none text-sm font-semibold text-neutral-700 placeholder:text-neutral-400 w-full"
+              className="bg-transparent outline-none text-sm text-neutral-800 placeholder:text-neutral-400 w-full"
             />
             {searchQuery && (
               <button 
@@ -298,85 +307,64 @@ export default function MapComponent({ locations }: { locations: any[] }) {
             )}
           </div>
 
-          {/* Filtri categoria come pills eleganti */}
-          <div className="flex flex-wrap gap-2">
-            {/* Bottone "Tutti" */}
-            <button
-              onClick={() => setSelectedCategory(null)}
-              className={`px-4 py-2 rounded-2xl text-xs font-semibold transition-all flex items-center gap-2 border ${
-                selectedCategory === null 
-                  ? 'bg-green-600 text-white border-green-600 shadow-lg shadow-green-500/30' 
-                  : 'bg-white/90 text-neutral-600 border-neutral-200 hover:border-green-400 hover:text-green-700'
-              }`}
-            >
-              <span className="text-sm">🌍</span> Tutti
-            </button>
-            
-            {/* Pills categorie - eleganti con ombre colorate */}
-            {availableCategories.map((cat) => {
-              const isHighlighted = matchedCategory?.toLowerCase() === cat.toLowerCase();
-              const isSelected = selectedCategory === cat;
+          {/* Filtri categoria - scrollabili con gradienti laterali */}
+          <div className="relative">
+            <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto no-scrollbar px-0.5 py-1">
+              {/* Bottone "Tutti" */}
+              <button
+                onClick={() => setSelectedCategory(null)}
+                className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                  selectedCategory === null 
+                    ? 'bg-green-700 text-white shadow-sm' 
+                    : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                }`}
+              >
+                <span className="text-xs">🌍</span>
+                <span className="hidden sm:inline">Tutti</span>
+              </button>
               
-              return (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(isSelected ? null : cat)}
-                  className={`px-4 py-2 rounded-2xl text-xs font-semibold transition-all flex items-center gap-2 border ${
-                    isSelected 
-                      ? 'bg-green-600 text-white border-green-600 shadow-lg shadow-green-500/30' 
-                      : isHighlighted
-                        ? 'bg-amber-100 text-amber-800 border-amber-400 shadow-md shadow-amber-500/20'
-                        : 'bg-white/90 text-neutral-600 border-neutral-200 hover:border-green-400 hover:text-green-700'
-                  }`}
-                  title={isHighlighted ? 'Categoria corrispondente alla ricerca!' : ''}
-                >
-                  <span className="text-sm">{getCategoryIcon(cat)}</span>
-                  <span className="capitalize">{cat}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Messaggio quando una categoria corrisponde alla ricerca */}
-          {matchedCategory && !selectedCategory && (
-            <div className="text-[11px] text-amber-700 bg-amber-50 px-4 py-2 rounded-xl font-medium flex items-center gap-2 border border-amber-200">
-              <span>💡</span>
-              <span>Corrispondenza: "{matchedCategory}" - clicca per filtrare</span>
+              {/* Pills categorie - eleganti con ombre colorate */}
+              {availableCategories.map((cat) => {
+                const isHighlighted = matchedCategory?.toLowerCase() === cat.toLowerCase();
+                const isSelected = selectedCategory === cat;
+                
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedCategory(isSelected ? null : cat)}
+                    className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                      isSelected 
+                        ? 'bg-green-700 text-white shadow-sm' 
+                        : isHighlighted
+                          ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                          : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                    }`}
+                    title={isHighlighted ? 'Categoria corrispondente!' : cat}
+                  >
+                    <span className="text-xs">{getCategoryIcon(cat)}</span>
+                    <span className="capitalize">{cat}</span>
+                  </button>
+                );
+              })}
             </div>
-          )}
 
-          {/* DIVISORE E TOGGLE MAPPA/LISTA */}
-          <div className="border-t border-neutral-200 pt-3 mt-1">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-neutral-500">
-                {farmers.length} {farmers.length === 1 ? 'azienda' : 'aziende'} trovate
-              </span>
-              
-              {/* Toggle Mappa / Lista */}
-              <div className="flex bg-neutral-100 rounded-full p-1 border border-neutral-200">
-                <button
-                  onClick={() => setViewMode('map')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                    viewMode === 'map'
-                      ? 'bg-white text-green-700 shadow-sm'
-                      : 'text-neutral-500 hover:text-neutral-700'
-                  }`}
-                >
-                  <MapIcon className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Mappa</span>
-                </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                    viewMode === 'list'
-                      ? 'bg-white text-green-700 shadow-sm'
-                      : 'text-neutral-500 hover:text-neutral-700'
-                  }`}
-                >
-                  <LayoutList className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Lista</span>
-                </button>
+            {/* Gradienti laterali per indicare scroll */}
+            <div className="absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-white to-transparent pointer-events-none rounded-l-2xl"></div>
+            <div className="absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-l from-white to-transparent pointer-events-none rounded-r-2xl"></div>
+            
+            {/* Messaggio categoria evidenziata - più discreto */}
+            {matchedCategory && !selectedCategory && (
+              <div className="text-[10px] text-amber-700 bg-amber-50/80 px-2 py-1 rounded-full font-medium flex items-center gap-1">
+                <span>💡</span>
+                <span>Tocca "{matchedCategory}" per filtrare</span>
               </div>
+            )}
+
+            {/* Counter risultati - minimal */}
+            <div className="flex justify-center">
+              <span className="text-[10px] font-medium text-neutral-500">
+                {farmers.length} {farmers.length === 1 ? 'azienda trovata' : 'aziende trovate'}
+              </span>
             </div>
           </div>
         </div>
@@ -399,6 +387,8 @@ export default function MapComponent({ locations }: { locations: any[] }) {
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-track { background: transparent; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
+        .no-scrollbar::-webkit-scrollbar { display: none !important; }
+        .no-scrollbar { -ms-overflow-style: none !important; scrollbar-width: none !important; }
       `}} />
 
       {/* CONTENUTO CONDIZIONALE: Mappa o Lista */}
@@ -410,7 +400,15 @@ export default function MapComponent({ locations }: { locations: any[] }) {
           />
           
           {farmers.map((farmer: any) => (
-            <MarkerComp key={farmer.id} position={[farmer.lat, farmer.lng]} icon={createFarmerMarker(farmer)}>
+            <MarkerComp 
+              key={farmer.id} 
+              position={[farmer.lat, farmer.lng]} 
+              icon={createFarmerMarker(farmer)}
+              eventHandlers={{
+                popupopen: () => setIsPopupOpen(true),
+                popupclose: () => setIsPopupOpen(false),
+              }}
+            >
               <PopupComp>
 
                 <div className="flex flex-col max-h-[460px]">
@@ -509,8 +507,8 @@ export default function MapComponent({ locations }: { locations: any[] }) {
           ))}
         </MapComp>
       ) : (
-        /* VISTA LISTA */
-        <div className="h-full w-full overflow-y-auto bg-[#F0F7F0] p-4 sm:p-6 custom-scroll">
+        /* VISTA LISTA - Assoluta, copre tutto quando attiva */
+        <div className="absolute inset-0 z-0 overflow-y-auto bg-[#F0F7F0] p-4 sm:p-6 custom-scroll">
           <div className="max-w-2xl mx-auto flex flex-col gap-5 pb-24">
             {farmers.map((farmer: any) => {
               const profile = farmerProfiles[farmer.id];
@@ -664,6 +662,19 @@ export default function MapComponent({ locations }: { locations: any[] }) {
           </div>
         </div>
       )}
+
+      {/* FAB TOGGLE - Floating Action Button in basso a destra */}
+      <button
+        onClick={() => setViewMode(viewMode === 'map' ? 'list' : 'map')}
+        className="absolute bottom-6 right-6 z-[500] w-14 h-14 bg-white rounded-full shadow-2xl border border-neutral-100 flex items-center justify-center hover:scale-110 active:scale-95 transition-all group"
+        title={viewMode === 'map' ? 'Vista Lista' : 'Vista Mappa'}
+      >
+        {viewMode === 'map' ? (
+          <LayoutList className="w-6 h-6 text-green-600 group-hover:text-green-700" />
+        ) : (
+          <MapIcon className="w-6 h-6 text-green-600 group-hover:text-green-700" />
+        )}
+      </button>
 
       {/* TOAST NOTIFICATION */}
       <Toast
