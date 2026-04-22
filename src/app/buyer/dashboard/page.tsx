@@ -25,9 +25,25 @@ interface FavoriteWithProfile {
     farm_name: string
     avatar_url: string | null
     phone: string | null
-    whatsapp: string | null
     bio: string | null
   } | null
+}
+
+async function fetchProfilesByIds(ids: string[]) {
+  if (!ids || ids.length === 0) return {} as Record<string, any>
+
+  const params = new URLSearchParams()
+  params.set('ids', ids.join(','))
+
+  const response = await fetch(`/api/profiles?${params.toString()}`)
+  if (!response.ok) {
+    const body = await response.text()
+    console.error('[BuyerDashboard] API profili non disponibile:', response.status, body)
+    return {} as Record<string, any>
+  }
+
+  const json = await response.json()
+  return (json?.profiles || {}) as Record<string, any>
 }
 
 export default function BuyerDashboard() {
@@ -67,19 +83,8 @@ export default function BuyerDashboard() {
         let profilesMap: Record<string, any> = {}
 
         if (farmerIds.length > 0) {
-          const { data: profilesData, error: profError } = await supabase
-            .from('profiles')
-            .select('*')
-            .in('id', farmerIds)
-
-          if (profError) {
-            console.error('[BuyerDashboard] Errore caricamento profili:', profError)
-          }
-
-          if (profilesData) {
-            profilesMap = Object.fromEntries(profilesData.map(p => [p.id, p]))
-            console.log('[BuyerDashboard] Profili trovati:', Object.keys(profilesMap))
-          }
+          profilesMap = await fetchProfilesByIds(farmerIds)
+          console.log('[BuyerDashboard] Profili caricati da API:', Object.keys(profilesMap))
         }
 
         enrichedFavorites = favData.map(fav => ({
@@ -181,7 +186,7 @@ export default function BuyerDashboard() {
             {favorites.map((fav) => {
               const profile = fav.profiles
               const avatarUrl = profile?.avatar_url || `https://ui-avatars.com/api/?name=${profile?.farm_name || profile?.full_name || 'F'}&background=15803d&color=fff&size=200`
-              const waPhone = formatPhoneForWA(profile?.phone || profile?.whatsapp || '')
+              const waPhone = formatPhoneForWA(profile?.phone || '')
 
               return (
                 <div 

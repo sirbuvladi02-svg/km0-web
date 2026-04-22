@@ -24,3 +24,9 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.leaflet-popup-content a,
+.leaflet-popup-content a:hover,
+.leaflet-popup-content a:focus {
+  color: inherit;
+}

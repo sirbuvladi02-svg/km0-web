@@ -1,5 +1,17 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Environment variables
+
+Create a `.env.local` file with the Supabase credentials used across the app:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=your-project-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-public-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+The `SUPABASE_SERVICE_ROLE_KEY` is required to fetch farmer profiles from the `/api/profiles` route so avatar and farm name render for every visitor (even non autenticati).
+
 ## Getting Started
 
 First, run the development server:

@@ -62,7 +62,7 @@ export default function FarmerDashboard() {
             <div className="w-10 h-10 bg-green-700 rounded-lg flex items-center justify-center">
               <Sprout className="w-6 h-6 text-white" />
             </div>
-            <span className="text-2xl font-bold text-green-700 uppercase tracking-tighter">KM0</span>
+            <span className="text-2xl font-bold text-green-700 tracking-tighter">farm2you</span>
           </Link>
           
           <div className="flex items-center gap-4">

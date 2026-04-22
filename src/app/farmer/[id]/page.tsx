@@ -32,18 +32,16 @@ export default function FarmerProfile() {
           console.log('[Vetrina] Utente non autenticato - accesso pubblico');
         }
 
-        // 2. Recuperiamo i dati del contadino
-        const { data: profileRows, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', id)
-          .limit(1);
-
-        const profileData = profileRows?.[0] || null;
-
-        if (profileError) {
-          console.error('[Vetrina] Errore caricamento profilo:', profileError);
+        // 2. Recuperiamo i dati del contadino tramite API server-side (bypass RLS)
+        const params = new URLSearchParams();
+        params.set('ids', id);
+        const response = await fetch(`/api/profiles?${params.toString()}`);
+        if (!response.ok) {
+          console.error('[Vetrina] API profili non disponibile:', response.status, await response.text());
         }
+
+        const json = response.ok ? await response.json() : { profiles: {} };
+        const profileData = json?.profiles?.[id] || null;
 
         if (!profileData) {
           console.warn('[Vetrina] Profilo non trovato per id:', id, '- mostro pagina generica');
@@ -73,6 +71,23 @@ export default function FarmerProfile() {
     }
 
     loadFarmerData();
+  }, [id]);
+
+  // Aggiorna automaticamente la vetrina se il farmer cambia nome/avatar/bio
+  useEffect(() => {
+    if (!id) return;
+    const channel = supabase
+      .channel(`farmer-vetrina-${id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${id}` }, payload => {
+        const updated = payload.new as any;
+        if (updated) {
+          setProfile((prev: any) => ({ ...(prev || {}), ...updated }));
+          console.log('[Vetrina] Profilo aggiornato in tempo reale:', updated.farm_name || updated.full_name);
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [id]);
 
   // 🔥 LA MAGIA: Funzione per caricare la foto del prodotto al volo!

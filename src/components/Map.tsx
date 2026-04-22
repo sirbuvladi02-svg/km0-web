@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import Link from 'next/link'
@@ -69,7 +69,8 @@ const getCategoryIcon = (category: string) => {
 export default function MapComponent({ locations }: { locations: any[] }) {
   const [center, setCenter] = useState<[number, number] | null>(null);
   const [farmerProfiles, setFarmerProfiles] = useState<Record<string, any>>({});
-  
+  const fetchedProfilesRef = useRef<Set<string>>(new Set());
+
   // STATO PER IL FILTRO
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
@@ -183,17 +184,61 @@ export default function MapComponent({ locations }: { locations: any[] }) {
     async function loadProfiles() {
       if (!locations || locations.length === 0) return;
       const userIds = Array.from(new Set(locations.map(loc => loc.user_id).filter(Boolean)));
-      if (userIds.length === 0) return;
+      const pendingIds = userIds.filter(id => !fetchedProfilesRef.current.has(id));
 
-      const { data } = await supabase.from('profiles').select('id, avatar_url, full_name, farm_name, phone, whatsapp').in('id', userIds);
-      if (data) {
-        const profileMap: Record<string, any> = {};
-        data.forEach(p => profileMap[p.id] = p);
-        setFarmerProfiles(profileMap);
+      if (pendingIds.length === 0) return;
+
+      console.log('[Map] loadProfiles - ids da richiedere:', pendingIds);
+
+      const chunkSize = 50;
+      for (let i = 0; i < pendingIds.length; i += chunkSize) {
+        const chunk = pendingIds.slice(i, i + chunkSize);
+        const params = new URLSearchParams();
+        params.set('ids', chunk.join(','));
+
+        try {
+          const response = await fetch(`/api/profiles?${params.toString()}`);
+          if (!response.ok) {
+            const body = await response.text();
+            console.error('[Map] API profili non disponibile:', response.status, body);
+            continue;
+          }
+
+          const json = await response.json();
+          if (json?.profiles) {
+            setFarmerProfiles(prev => ({ ...prev, ...json.profiles }));
+            chunk.forEach(id => fetchedProfilesRef.current.add(id));
+            console.log('[Map] Profili sincronizzati dall\'API:', Object.keys(json.profiles).length);
+          }
+        } catch (err) {
+          console.error('[Map] Errore fetch API profili:', err);
+        }
       }
     }
     loadProfiles();
   }, [locations]);
+
+  // 🔄 REALTIME: Ascolta modifiche alla tabella profiles per aggiornare nomi/avatar in tempo reale
+  useEffect(() => {
+    const channel = supabase
+      .channel('profiles-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'profiles' },
+        (payload: any) => {
+          const updated = payload.new;
+          if (!updated?.id) return;
+          setFarmerProfiles(prev => {
+            if (!prev[updated.id]) return prev; // profilo non nella mappa, ignora
+            return { ...prev, [updated.id]: { ...prev[updated.id], ...updated } };
+          });
+          console.log('[Map] Profilo aggiornato in tempo reale:', updated.farm_name || updated.full_name);
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   // ESTRAIAMO LE CATEGORIE DINAMICAMENTE (Ignorando i null)
   const availableCategories = useMemo(() => {
@@ -447,8 +492,8 @@ export default function MapComponent({ locations }: { locations: any[] }) {
           />
           
           {farmers.map((farmer: any) => (
-            <MarkerComp 
-              key={farmer.id} 
+            <MarkerComp
+              key={`${farmer.id}-${farmerProfiles[farmer.id]?.farm_name || farmerProfiles[farmer.id]?.full_name || ''}`}
               position={[farmer.lat, farmer.lng]} 
               icon={createFarmerMarker(farmer)}
               eventHandlers={{
@@ -523,9 +568,9 @@ export default function MapComponent({ locations }: { locations: any[] }) {
                       return isValidId ? (
                         <Link
                           href={`/farmer/${farmerUserId}`}
-                          className="flex-[2] bg-green-600 text-white text-center font-bold py-3.5 rounded-2xl text-sm shadow-lg shadow-green-500/25 hover:bg-green-700 hover:shadow-green-500/40 transition-all active:scale-95 flex items-center justify-center gap-2 no-underline"
+                          className="flex-[2] bg-green-600 text-white !text-white hover:!text-white text-center font-bold py-3.5 rounded-2xl text-sm shadow-lg shadow-green-500/25 hover:bg-green-700 hover:shadow-green-500/40 transition-all active:scale-95 flex items-center justify-center gap-2 no-underline"
                         >
-                          <Store className="w-4 h-4" />
+                          <Store className="w-4 h-4 text-white" />
                           Vetrina
                         </Link>
                       ) : (
@@ -543,9 +588,9 @@ export default function MapComponent({ locations }: { locations: any[] }) {
                       href={`https://www.google.com/maps/dir/?api=1&destination=${farmer.lat},${farmer.lng}`} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="flex-1 bg-neutral-100 text-neutral-600 text-center font-semibold py-3.5 rounded-2xl text-xs hover:bg-neutral-200 hover:text-neutral-800 transition-all active:scale-95 flex items-center justify-center gap-1.5 no-underline border border-neutral-200"
+                      className="flex-1 bg-green-600 text-white !text-white hover:!text-white text-center font-semibold py-3.5 rounded-2xl text-xs hover:bg-green-700 transition-all active:scale-95 flex items-center justify-center gap-1.5 no-underline border border-green-500"
                     >
-                      <Navigation className="w-4 h-4" /> 
+                      <Navigation className="w-4 h-4 text-white" /> 
                       Portami Qui
                     </a>
                     
@@ -575,7 +620,7 @@ export default function MapComponent({ locations }: { locations: any[] }) {
             {farmers.map((farmer: any) => {
               const profile = farmerProfiles[farmer.id];
               const avatarUrl = profile?.avatar_url || `https://ui-avatars.com/api/?name=${profile?.farm_name || profile?.full_name || 'F'}&background=15803d&color=fff&size=200`;
-              const phone = profile?.phone || profile?.whatsapp;
+              const phone = profile?.phone;
               
               return (
                 <div 

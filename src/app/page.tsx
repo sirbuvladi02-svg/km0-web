@@ -44,7 +44,7 @@ export default function App() {
             <div className="w-10 h-10 bg-green-700 rounded-lg flex items-center justify-center shadow-md">
               <Sprout className="w-6 h-6 text-white" />
             </div>
-            <span className="text-2xl font-bold text-green-700 uppercase tracking-tighter">KM0</span>
+            <span className="text-2xl font-bold text-green-700 tracking-tighter">farm2you</span>
           </Link>
 
           {loading ? <Loader2 className="animate-spin text-neutral-300" /> : (
