@@ -19,6 +19,7 @@ const CATEGORIES = [
 export default function AddProduct() {
   const [name, setName] = useState('')
   const [price, setPrice] = useState('')
+  const [description, setDescription] = useState('')
   const [category, setCategory] = useState('vegetables')
   const [imageFile, setImageFile] = useState<File | null>(null) // <-- Nuovo stato per l'immagine
   const [imagePreview, setImagePreview] = useState<string | null>(null) // <-- Per mostrare l'anteprima
@@ -98,7 +99,8 @@ export default function AddProduct() {
         lat: coords.lat, 
         lng: coords.lng,
         user_id: user.id,
-        image_url: uploadedImageUrl // <-- Salviamo il link qui!
+        image_url: uploadedImageUrl, // <-- Salviamo il link qui!
+        description: description.trim() || null
       }
     ])
 
@@ -177,6 +179,19 @@ export default function AddProduct() {
           <label className="text-xs font-bold uppercase tracking-widest text-neutral-400 ml-4 mb-2 block">Prezzo al KG (€)</label>
           <input required type="number" step="0.01" placeholder="Es: 2.50" onChange={(e) => setPrice(e.target.value)}
             className="w-full p-5 bg-neutral-50 border-2 border-neutral-100 rounded-2xl focus:border-green-700 outline-none transition-all text-neutral-900 placeholder:text-neutral-300 font-medium" />
+        </div>
+
+        {/* Descrizione */}
+        <div>
+          <label className="text-xs font-bold uppercase tracking-widest text-neutral-400 ml-4 mb-2 block">Descrizione Prodotto</label>
+          <textarea
+            rows={4}
+            maxLength={400}
+            placeholder="Es: Coltivato senza pesticidi, raccolto ogni mattina."
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="w-full p-5 bg-neutral-50 border-2 border-neutral-100 rounded-2xl focus:border-green-700 outline-none transition-all text-neutral-900 placeholder:text-neutral-300 font-medium resize-none"
+          />
         </div>
 
         <button disabled={loading} type="submit" className="w-full bg-green-700 text-white py-6 rounded-2xl font-black text-xl hover:bg-green-800 transition-all shadow-xl active:scale-95 flex justify-center">

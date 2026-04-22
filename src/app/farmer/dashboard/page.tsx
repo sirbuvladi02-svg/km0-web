@@ -3,14 +3,48 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { 
   LayoutDashboard, PlusCircle, ShoppingBasket, 
-  Trash2, Package, Loader2, Sprout, LogOut, ArrowLeft, User
+  Trash2, Package, Loader2, Sprout, LogOut, ArrowLeft, User, Pencil, ImagePlus
 } from 'lucide-react'
 import Link from 'next/link'
+
+type EditFormState = {
+  id: string
+  product_name: string
+  price: string
+  category: string
+  description: string
+  imagePreview: string | null
+  imageFile: File | null
+}
+
+const CATEGORIES = [
+  { id: 'vegetables', label: 'Ortaggi e Verdure', emoji: '🥬' },
+  { id: 'fruit', label: 'Frutta', emoji: '🍎' },
+  { id: 'cheese', label: 'Formaggi e Latticini', emoji: '🧀' },
+  { id: 'meat', label: 'Carne e Salumi', emoji: '🥩' },
+  { id: 'eggs', label: 'Uova', emoji: '🥚' },
+  { id: 'honey', label: 'Miele e Confetture', emoji: '🍯' },
+  { id: 'wine', label: 'Vino e Olio', emoji: '🍷' },
+  { id: 'farm', label: 'Altro (Generico)', emoji: '🌾' }
+]
+
+const EMPTY_EDIT_FORM: EditFormState = {
+  id: '',
+  product_name: '',
+  price: '',
+  category: CATEGORIES[0].id,
+  description: '',
+  imagePreview: null,
+  imageFile: null
+}
 
 export default function FarmerDashboard() {
   const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editForm, setEditForm] = useState<EditFormState>(EMPTY_EDIT_FORM)
+  const [savingEdit, setSavingEdit] = useState(false)
 
   useEffect(() => {
     async function fetchMyProducts() {
@@ -32,7 +66,7 @@ export default function FarmerDashboard() {
     fetchMyProducts()
   }, [])
 
-  // 🗑️ FUNZIONE PER ELIMINARE IL PRODOTTO
+  // FUNZIONE PER ELIMINARE IL PRODOTTO
   const deleteProduct = async (id: string) => {
     const conferma = window.confirm("Sei sicuro di voler eliminare questo prodotto?")
     if (!conferma) return
@@ -52,6 +86,82 @@ export default function FarmerDashboard() {
   const handleLogout = async () => {
     await supabase.auth.signOut()
     window.location.href = '/'
+  }
+
+  const openEditModal = (product: any) => {
+    setEditForm({
+      id: product.id,
+      product_name: product.product_name || '',
+      price: product.price ? String(product.price) : '',
+      category: product.category || CATEGORIES[0].id,
+      description: product.description || '',
+      imagePreview: product.image_url || null,
+      imageFile: null
+    })
+    setEditModalOpen(true)
+  }
+
+  const closeEditModal = () => {
+    setEditModalOpen(false)
+    setEditForm(EMPTY_EDIT_FORM)
+    setSavingEdit(false)
+  }
+
+  const handleEditImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      setEditForm(prev => ({ ...prev, imageFile: file, imagePreview: URL.createObjectURL(file) }))
+    }
+  }
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editForm.id) return
+
+    const trimmedName = editForm.product_name.trim()
+    const parsedPrice = parseFloat(editForm.price)
+    if (!trimmedName) {
+      alert('Inserisci un nome prodotto valido')
+      return
+    }
+    if (Number.isNaN(parsedPrice)) {
+      alert('Inserisci un prezzo valido')
+      return
+    }
+
+    setSavingEdit(true)
+    let imageUrl = editForm.imagePreview
+
+    if (editForm.imageFile) {
+      const fileExt = editForm.imageFile.name.split('.').pop()
+      const fileName = `${editForm.id}-${Date.now()}.${fileExt}`
+      const { error: uploadError } = await supabase.storage.from('products').upload(fileName, editForm.imageFile)
+      if (uploadError) {
+        alert('Errore caricamento immagine: ' + uploadError.message)
+        setSavingEdit(false)
+        return
+      }
+      const { data: { publicUrl } } = supabase.storage.from('products').getPublicUrl(fileName)
+      imageUrl = publicUrl
+    }
+
+    const updates = {
+      product_name: trimmedName,
+      price: parsedPrice,
+      category: editForm.category,
+      description: editForm.description.trim() || null,
+      image_url: imageUrl
+    }
+
+    const { error } = await supabase.from('products').update(updates).eq('id', editForm.id)
+    if (error) {
+      alert('Errore durante il salvataggio: ' + error.message)
+      setSavingEdit(false)
+      return
+    }
+
+    setProducts(prev => prev.map(p => p.id === editForm.id ? { ...p, ...updates } : p))
+    closeEditModal()
   }
 
   return (
@@ -130,14 +240,22 @@ export default function FarmerDashboard() {
                       </div>
                     </div>
                     
-                    {/* 🗑️ BOTTONE ELIMINA */}
-                    <button 
-                      onClick={() => deleteProduct(p.id)}
-                      className="p-3 text-neutral-300 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all"
-                      title="Elimina prodotto"
-                    >
-                      <Trash2 className="w-6 h-6" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => openEditModal(p)}
+                        className="p-3 text-neutral-300 hover:text-green-600 hover:bg-green-50 rounded-2xl transition-all"
+                        title="Modifica prodotto"
+                      >
+                        <Pencil className="w-6 h-6" />
+                      </button>
+                      <button 
+                        onClick={() => deleteProduct(p.id)}
+                        className="p-3 text-neutral-300 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all"
+                        title="Elimina prodotto"
+                      >
+                        <Trash2 className="w-6 h-6" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -150,6 +268,118 @@ export default function FarmerDashboard() {
           </div>
         </div>
       </div>
+
+      {editModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm">
+          <form
+            onSubmit={handleSaveEdit}
+            className="bg-white w-full max-w-xl rounded-[3rem] p-8 md:p-12 shadow-2xl border border-green-50 space-y-6 relative text-neutral-900"
+          >
+            <button
+              type="button"
+              onClick={closeEditModal}
+              className="absolute top-6 right-6 text-neutral-300 hover:text-neutral-600"
+            >
+              &#10006;
+            </button>
+
+            <div className="text-center">
+              <h3 className="text-3xl font-black tracking-tight">Modifica prodotto</h3>
+              <p className="text-sm text-neutral-400 font-bold uppercase tracking-[0.2em] mt-2">
+                Mantieni lo stile della tua vetrina
+              </p>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold uppercase tracking-widest text-neutral-400 ml-2 mb-2 flex items-center gap-2">
+                <ImagePlus className="w-3 h-3" /> Foto Prodotto
+              </label>
+              <div className="relative w-full h-32 bg-neutral-50 border-2 border-dashed border-neutral-200 rounded-2xl overflow-hidden hover:border-green-500 transition-colors group cursor-pointer flex flex-col items-center justify-center">
+                {editForm.imagePreview ? (
+                  <img src={editForm.imagePreview} alt="Anteprima prodotto" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="text-center text-neutral-400 flex flex-col items-center">
+                    <ImagePlus className="w-8 h-8 mb-1 group-hover:text-green-600 transition-colors" />
+                    <span className="text-sm font-bold">Clicca per caricare</span>
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                  onChange={handleEditImageChange}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold uppercase tracking-widest text-neutral-400 ml-2 mb-2 block">Categoria</label>
+              <select
+                value={editForm.category}
+                onChange={(e) => setEditForm(prev => ({ ...prev, category: e.target.value }))}
+                className="w-full p-5 bg-neutral-50 border-2 border-neutral-100 rounded-2xl focus:border-green-700 outline-none transition-all text-neutral-900 font-bold cursor-pointer appearance-none"
+              >
+                {CATEGORIES.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.emoji} {cat.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold uppercase tracking-widest text-neutral-400 ml-2 mb-2 block">Nome Specifico</label>
+              <input
+                type="text"
+                value={editForm.product_name}
+                onChange={(e) => setEditForm(prev => ({ ...prev, product_name: e.target.value }))}
+                placeholder="Es: Mele Fuji Bio"
+                className="w-full p-5 bg-neutral-50 border-2 border-neutral-100 rounded-2xl focus:border-green-700 outline-none transition-all text-neutral-900 placeholder:text-neutral-300 font-medium"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold uppercase tracking-widest text-neutral-400 ml-2 mb-2 block">Prezzo al KG (€)</label>
+              <input
+                type="number"
+                step="0.01"
+                value={editForm.price}
+                onChange={(e) => setEditForm(prev => ({ ...prev, price: e.target.value }))}
+                placeholder="Es: 2.50"
+                className="w-full p-5 bg-neutral-50 border-2 border-neutral-100 rounded-2xl focus:border-green-700 outline-none transition-all text-neutral-900 placeholder:text-neutral-300 font-medium"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold uppercase tracking-widest text-neutral-400 ml-2 mb-2 block">Descrizione prodotto</label>
+              <textarea
+                rows={4}
+                maxLength={400}
+                value={editForm.description}
+                onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Es: Coltivato senza pesticidi, raccolto ogni mattina."
+                className="w-full p-5 bg-neutral-50 border-2 border-neutral-100 rounded-2xl focus:border-green-700 outline-none transition-all text-neutral-900 placeholder:text-neutral-300 font-medium resize-none"
+              />
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                type="button"
+                onClick={closeEditModal}
+                className="flex-1 py-4 rounded-2xl border-2 border-neutral-200 text-neutral-500 font-bold bg-white"
+              >
+                Annulla
+              </button>
+              <button
+                type="submit"
+                disabled={savingEdit}
+                className="flex-1 py-4 rounded-2xl bg-green-700 text-white font-black hover:bg-green-800 transition disabled:opacity-50"
+              >
+                {savingEdit ? 'Salvataggio...' : 'Salva modifiche'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
     </div>
   )
 }

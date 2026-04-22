@@ -274,9 +274,14 @@ export default function FarmerProfile() {
 
                   <div className="p-6 flex flex-col flex-1">
                     <h3 className="font-black text-xl text-neutral-900 mb-1 capitalize">{product.product_name}</h3>
-                    <p className="text-sm font-bold text-neutral-400 uppercase tracking-widest mb-4 flex-1">
+                    <p className="text-sm font-bold text-neutral-400 uppercase tracking-widest mb-2">
                       {product.category || 'Prodotto agricolo'}
                     </p>
+                    {product.description && (
+                      <p className="text-sm text-neutral-600 mb-4 flex-1 whitespace-pre-line">
+                        {product.description}
+                      </p>
+                    )}
                     
                     <a href={waPhone ? `https://wa.me/${waPhone}?text=${encodeURIComponent(`Ciao! Vorrei sapere se il prodotto "${product.product_name}" è attualmente disponibile.`)}` : '#'}
                        target={waPhone ? "_blank" : "_self"}
