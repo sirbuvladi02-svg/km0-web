@@ -27,9 +27,8 @@ export async function POST(request: Request) {
   })
 
   const originHeader = request.headers.get('origin')
-  const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null
-  const fallbackUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-  const redirectBase = originHeader || vercelUrl || fallbackUrl
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://farm2you.vercel.app'
+  const redirectBase = originHeader || siteUrl
 
   try {
     const { error } = await admin.auth.resetPasswordForEmail(email, {

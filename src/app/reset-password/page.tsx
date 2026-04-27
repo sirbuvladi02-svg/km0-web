@@ -18,6 +18,25 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     const checkSession = async () => {
+      // 1. Controlliamo se c'è un 'code' in query params (flusso PKCE moderno)
+      const urlParams = new URLSearchParams(window.location.search)
+      const code = urlParams.get('code')
+
+      if (code) {
+        // Scambia il token con la sessione prima di continuare
+        const { error } = await supabase.auth.exchangeCodeForSession(code)
+        if (error) {
+          console.error('[ResetPassword] Errore scambio code:', error)
+          // Togliamo il code dall'URL per non rifarlo
+          window.history.replaceState({}, document.title, window.location.pathname)
+          setInitializing(false)
+          return
+        }
+        // Togliamo il code dall'URL per non rifarlo a ogni mount
+        window.history.replaceState({}, document.title, window.location.pathname)
+      }
+
+      // 2. Controllo normale sessione
       const { data } = await supabase.auth.getSession()
       setHasSession(Boolean(data.session))
       setInitializing(false)
