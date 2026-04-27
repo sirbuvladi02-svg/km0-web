@@ -1,11 +1,15 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { 
-  LayoutDashboard, PlusCircle, ShoppingBasket, 
-  Trash2, Package, Loader2, Sprout, LogOut, ArrowLeft, User, Pencil, ImagePlus, Settings
+import {
+  LayoutDashboard, PlusCircle,
+  Trash2, Package, Loader2, ArrowLeft, User, Pencil, ImagePlus
 } from 'lucide-react'
 import Link from 'next/link'
+import { useToast, useConfirm, ProductRowSkeleton, EmptyState, LinkButton } from '@/components/ui'
+import { AppHeader } from '@/components/layout/AppHeader'
+import { AppBottomNav } from '@/components/layout/AppBottomNav'
+import { getCategory } from '@/lib/categories'
 
 type EditFormState = {
   id: string
@@ -39,6 +43,8 @@ const EMPTY_EDIT_FORM: EditFormState = {
 }
 
 export default function FarmerDashboard() {
+  const toast = useToast()
+  const { confirm } = useConfirm()
   const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [userEmail, setUserEmail] = useState<string | null>(null)
@@ -59,7 +65,7 @@ export default function FarmerDashboard() {
           .or(`farmer_id.eq.${user.id},user_id.eq.${user.id}`) 
 
         if (data) setProducts(data)
-        if (error) console.error("Errore query:", error.message)
+        if (error) toast.error({ title: 'Errore query', description: error.message })
       }
       setLoading(false)
     }
@@ -67,9 +73,15 @@ export default function FarmerDashboard() {
   }, [])
 
   // FUNZIONE PER ELIMINARE IL PRODOTTO
-  const deleteProduct = async (id: string) => {
-    const conferma = window.confirm("Sei sicuro di voler eliminare questo prodotto?")
-    if (!conferma) return
+  const deleteProduct = async (id: string, name?: string) => {
+    const ok = await confirm({
+      title: 'Eliminare il prodotto?',
+      description: name ? `"${name}" verrà rimosso definitivamente dalla tua vetrina.` : 'Il prodotto verrà rimosso definitivamente dalla tua vetrina.',
+      confirmLabel: 'Elimina',
+      cancelLabel: 'Annulla',
+      tone: 'danger',
+    })
+    if (!ok) return
 
     const { error } = await supabase
       .from('products')
@@ -77,15 +89,11 @@ export default function FarmerDashboard() {
       .eq('id', id)
 
     if (error) {
-      alert("Errore durante l'eliminazione: " + error.message)
+      toast.error({ title: 'Eliminazione non riuscita', description: error.message })
     } else {
       setProducts((prev) => prev.filter((p) => p.id !== id))
+      toast.success({ title: 'Prodotto eliminato' })
     }
-  }
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    window.location.href = '/'
   }
 
   const openEditModal = (product: any) => {
@@ -121,11 +129,11 @@ export default function FarmerDashboard() {
     const trimmedName = editForm.product_name.trim()
     const parsedPrice = parseFloat(editForm.price)
     if (!trimmedName) {
-      alert('Inserisci un nome prodotto valido')
+      toast.warning({ title: 'Nome prodotto mancante', description: 'Inserisci un nome valido per il prodotto.' })
       return
     }
     if (Number.isNaN(parsedPrice)) {
-      alert('Inserisci un prezzo valido')
+      toast.warning({ title: 'Prezzo non valido', description: 'Controlla che il prezzo sia un numero corretto.' })
       return
     }
 
@@ -137,7 +145,7 @@ export default function FarmerDashboard() {
       const fileName = `${editForm.id}-${Date.now()}.${fileExt}`
       const { error: uploadError } = await supabase.storage.from('products').upload(fileName, editForm.imageFile)
       if (uploadError) {
-        alert('Errore caricamento immagine: ' + uploadError.message)
+        toast.error({ title: 'Caricamento immagine fallito', description: uploadError.message })
         setSavingEdit(false)
         return
       }
@@ -155,45 +163,21 @@ export default function FarmerDashboard() {
 
     const { error } = await supabase.from('products').update(updates).eq('id', editForm.id)
     if (error) {
-      alert('Errore durante il salvataggio: ' + error.message)
+      toast.error({ title: 'Salvataggio non riuscito', description: error.message })
       setSavingEdit(false)
       return
     }
 
     setProducts(prev => prev.map(p => p.id === editForm.id ? { ...p, ...updates } : p))
+    toast.success({ title: 'Prodotto aggiornato' })
     closeEditModal()
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 font-sans">
-      <header className="border-b border-neutral-200 bg-white sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-green-700 rounded-lg flex items-center justify-center">
-              <Sprout className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-2xl font-bold text-green-700 tracking-tighter">farm2you</span>
-          </Link>
-          
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-bold text-neutral-400 hidden sm:block uppercase tracking-widest">
-              {userEmail?.split('@')[0]}
-            </span>
-            <Link
-              href="/account/settings"
-              className="bg-neutral-100 text-neutral-500 p-2.5 rounded-full hover:bg-green-50 hover:text-green-700 transition shadow-sm"
-              title="Impostazioni"
-            >
-              <Settings className="w-5 h-5" />
-            </Link>
-            <button onClick={handleLogout} className="bg-neutral-100 text-neutral-500 p-2.5 rounded-full hover:bg-red-50 hover:text-red-600 transition shadow-sm" title="Esci">
-              <LogOut className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-surface-app font-sans pb-24 md:pb-0">
+      <AppHeader eyebrow="Area produttore" title={userEmail?.split('@')[0]} />
 
-      <div className="max-w-5xl mx-auto p-8">
+      <div className="max-w-5xl mx-auto p-6 sm:p-8">
         <Link href="/" className="inline-flex items-center text-green-700 font-black text-xs uppercase tracking-widest mb-8 hover:translate-x-[-4px] transition-transform">
           <ArrowLeft className="w-4 h-4 mr-2" /> Torna alla Home
         </Link>
@@ -232,18 +216,33 @@ export default function FarmerDashboard() {
             </div>
 
             {loading ? (
-              <div className="flex justify-center py-12"><Loader2 className="animate-spin text-green-700 w-10 h-10" /></div>
+              <div className="space-y-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <ProductRowSkeleton key={i} />
+                ))}
+              </div>
             ) : products.length > 0 ? (
               <div className="space-y-4">
-                {products.map((p) => (
-                  <div key={p.id} className="p-5 bg-neutral-50 rounded-3xl border-2 border-neutral-50 flex justify-between items-center hover:border-green-200 transition-colors group">
-                    <div className="flex items-center gap-4">
-                       <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm group-hover:bg-green-700 transition-colors">
-                        <Package className="text-green-700 w-6 h-6 group-hover:text-white transition-colors" />
+                {products.map((p, index) => {
+                  const cat = getCategory(p.category)
+                  return (
+                  <div
+                    key={p.id}
+                    className="p-5 bg-neutral-50 rounded-3xl border-2 border-neutral-50 flex justify-between items-center hover:border-green-200 transition-colors group animate-slide-up"
+                    style={{ animationDelay: `${Math.min(index * 50, 400)}ms` }}
+                  >
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-sm ${cat.classes.bubble}`}>
+                        <span aria-hidden>{cat.emoji}</span>
                       </div>
-                      <div>
-                        <h3 className="font-black text-neutral-900 uppercase text-lg leading-tight">{p.product_name}</h3>
-                        <p className="text-sm text-green-700 font-bold italic">€ {p.price} - {p.category}</p>
+                      <div className="min-w-0">
+                        <h3 className="font-bold text-ink-900 text-base leading-tight truncate">{p.product_name}</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-sm font-bold text-brand-700">€ {Number(p.price).toFixed(2)} <span className="text-ink-400 font-medium">/kg</span></span>
+                          <span className={`inline-flex items-center text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${cat.classes.pill}`}>
+                            {cat.label}
+                          </span>
+                        </div>
                       </div>
                     </div>
                     
@@ -256,7 +255,7 @@ export default function FarmerDashboard() {
                         <Pencil className="w-6 h-6" />
                       </button>
                       <button 
-                        onClick={() => deleteProduct(p.id)}
+                        onClick={() => deleteProduct(p.id, p.product_name)}
                         className="p-3 text-neutral-300 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all"
                         title="Elimina prodotto"
                       >
@@ -264,23 +263,33 @@ export default function FarmerDashboard() {
                       </button>
                     </div>
                   </div>
-                ))}
+                  )
+                })}
               </div>
             ) : (
-              <div className="text-center py-16">
-                <Package className="w-16 h-16 text-neutral-200 mx-auto mb-4" />
-                <p className="text-neutral-400 font-black uppercase text-sm tracking-widest">Nessun prodotto trovato</p>
-              </div>
+              <EmptyState
+                tone="brand"
+                icon={<Package className="w-8 h-8" />}
+                title="Nessun prodotto ancora"
+                description="Inizia a costruire la tua vetrina: ogni prodotto che aggiungi diventa visibile sulla mappa ai clienti vicini."
+                action={
+                  <LinkButton href="/farmer/add" iconLeft={<PlusCircle className="w-4 h-4" />}>
+                    Aggiungi il primo prodotto
+                  </LinkButton>
+                }
+              />
             )}
           </div>
         </div>
       </div>
 
+      <AppBottomNav role="farmer" />
+
       {editModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-surface-overlay)] px-4 backdrop-blur-sm animate-fade-in">
           <form
             onSubmit={handleSaveEdit}
-            className="bg-white w-full max-w-xl rounded-[3rem] p-8 md:p-12 shadow-2xl border border-green-50 space-y-6 relative text-neutral-900"
+            className="bg-white w-full max-w-xl rounded-[3rem] p-8 md:p-12 shadow-2xl border border-green-50 space-y-6 relative text-neutral-900 animate-pop-in max-h-[90vh] overflow-y-auto"
           >
             <button
               type="button"

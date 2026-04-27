@@ -1,32 +1,181 @@
 @import "tailwindcss";
 
+/* ============================================================
+   KM0 Design Tokens
+   Tailwind v4 CSS-first config: usa @theme per esporre tokens
+   come classi (bg-brand-500, rounded-card, shadow-glow, ecc.)
+   ============================================================ */
+
+@theme {
+  /* ---------- Font families ---------- */
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+  --font-display: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+
+  /* ---------- Brand: verde (campo, foglia) ---------- */
+  --color-brand-50: #f1f8ee;
+  --color-brand-100: #dcecd1;
+  --color-brand-200: #b9d8a4;
+  --color-brand-300: #8fbf6f;
+  --color-brand-400: #6ba74b;
+  --color-brand-500: #4f8b35;
+  --color-brand-600: #3d6f2a;
+  --color-brand-700: #305923;
+  --color-brand-800: #28471d;
+  --color-brand-900: #1d3315;
+  --color-brand-950: #0f1d09;
+
+  /* ---------- Earth: warm neutral (terra, paglia) ---------- */
+  --color-earth-50: #faf8f3;
+  --color-earth-100: #f3eee0;
+  --color-earth-200: #e6dcc1;
+  --color-earth-300: #d3c298;
+  --color-earth-400: #bca56e;
+  --color-earth-500: #a48a52;
+  --color-earth-600: #856e3f;
+  --color-earth-700: #685434;
+  --color-earth-800: #4d3e28;
+  --color-earth-900: #322819;
+
+  /* ---------- Accent: lime (highlights, gamification) ---------- */
+  --color-accent-50: #f7ffe5;
+  --color-accent-100: #edfecb;
+  --color-accent-200: #d9fb98;
+  --color-accent-300: #bdf25a;
+  --color-accent-400: #a3e333;
+  --color-accent-500: #84c91a;
+  --color-accent-600: #65a012;
+  --color-accent-700: #4f7a13;
+  --color-accent-800: #406015;
+
+  /* ---------- Surface: sfondi & superfici ---------- */
+  --color-surface-app: #fbfaf6;
+  --color-surface-card: #ffffff;
+  --color-surface-muted: #f4f3ed;
+  --color-surface-strong: #ecebe2;
+  --color-surface-overlay: rgba(15, 29, 9, 0.55);
+
+  /* ---------- Ink: testo & bordi ---------- */
+  --color-ink-900: #16221c;
+  --color-ink-800: #2a3530;
+  --color-ink-700: #3f4a44;
+  --color-ink-600: #5a6660;
+  --color-ink-500: #79857f;
+  --color-ink-400: #97a39d;
+  --color-ink-300: #b6c0bb;
+  --color-ink-200: #d4dbd6;
+  --color-ink-100: #e7ebe7;
+  --color-ink-50: #f3f5f3;
+
+  /* ---------- Stati: success, danger, warning, info ---------- */
+  --color-success-50: #ebfaf0;
+  --color-success-500: #1ea05a;
+  --color-success-600: #168047;
+  --color-success-700: #126839;
+
+  --color-danger-50: #fdecec;
+  --color-danger-500: #d8454e;
+  --color-danger-600: #b9333d;
+  --color-danger-700: #952732;
+
+  --color-warning-50: #fff5dc;
+  --color-warning-500: #e2a020;
+  --color-warning-600: #b67d12;
+
+  --color-info-50: #e7f0fb;
+  --color-info-500: #2f7ad6;
+  --color-info-600: #245da4;
+
+  /* ---------- Brand utility (alias) ---------- */
+  --color-whatsapp-500: #25d366;
+  --color-whatsapp-600: #20bd5a;
+
+  /* ---------- Radius: gerarchia tra 4 livelli ---------- */
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-xl: 30px;
+  --radius-2xl: 40px;
+  --radius-pill: 9999px;
+
+  /* ---------- Shadows: leggere, eleganti ---------- */
+  --shadow-xs: 0 1px 2px 0 rgba(22, 34, 28, 0.05);
+  --shadow-sm: 0 2px 6px -1px rgba(22, 34, 28, 0.06), 0 1px 2px -1px rgba(22, 34, 28, 0.04);
+  --shadow-md: 0 8px 24px -8px rgba(22, 34, 28, 0.1), 0 2px 6px -2px rgba(22, 34, 28, 0.05);
+  --shadow-lg: 0 20px 40px -16px rgba(22, 34, 28, 0.18), 0 6px 14px -8px rgba(22, 34, 28, 0.08);
+  --shadow-glow: 0 12px 28px -10px rgba(79, 139, 53, 0.4);
+
+  /* ---------- Easing & motion ---------- */
+  --ease-out-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-spring: cubic-bezier(0.16, 1.05, 0.32, 1.1);
+}
+
+/* ---------- Reset di base & global look ---------- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: var(--color-surface-app);
+  --foreground: var(--color-ink-900);
+  color-scheme: light;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html,
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
+/* Selezione testo coerente con brand */
+::selection {
+  background: var(--color-brand-200);
+  color: var(--color-brand-900);
+}
+
+/* Focus state più gentile e accessibile */
+:focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Scrollbar discreta su Webkit */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--color-ink-200);
+  border-radius: 9999px;
+  border: 2px solid var(--color-surface-app);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--color-ink-300); }
+
+/* Patch Leaflet popup */
 .leaflet-popup-content a,
 .leaflet-popup-content a:hover,
 .leaflet-popup-content a:focus {
   color: inherit;
 }
+
+/* ---------- Animazioni riusabili ---------- */
+@keyframes km0-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes km0-pop-in {
+  0% { opacity: 0; transform: scale(0.96); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes km0-slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes km0-shimmer {
+  100% { transform: translateX(100%); }
+}
+
+.animate-fade-in { animation: km0-fade-in 200ms var(--ease-out-soft) both; }
+.animate-pop-in { animation: km0-pop-in 260ms var(--ease-spring) both; }
+.animate-slide-up { animation: km0-slide-up 280ms var(--ease-out-soft) both; }

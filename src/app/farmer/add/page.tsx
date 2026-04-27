@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { Sprout, ArrowLeft, MapPin, Loader2, Tag, ImagePlus } from 'lucide-react'
 import Link from 'next/link'
+import { useToast } from '@/components/ui'
 
 const CATEGORIES = [
   { id: 'vegetables', label: 'Ortaggi e Verdure', emoji: '🥬' },
@@ -17,6 +18,7 @@ const CATEGORIES = [
 ]
 
 export default function AddProduct() {
+  const toast = useToast()
   const [name, setName] = useState('')
   const [price, setPrice] = useState('')
   const [description, setDescription] = useState('')
@@ -58,7 +60,7 @@ export default function AddProduct() {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      alert("Devi essere loggato!");
+      toast.warning({ title: 'Sessione scaduta', description: 'Effettua di nuovo il login per continuare.' });
       setLoading(false);
       router.push('/login');
       return;
@@ -77,7 +79,7 @@ export default function AddProduct() {
         .upload(fileName, imageFile);
 
       if (uploadError) {
-        alert("Errore nel caricamento dell'immagine: " + uploadError.message);
+        toast.error({ title: 'Caricamento immagine fallito', description: uploadError.message });
         setLoading(false);
         return;
       }
@@ -105,8 +107,9 @@ export default function AddProduct() {
     ])
 
     if (error) {
-      alert("Errore: " + error.message)
+      toast.error({ title: 'Pubblicazione fallita', description: error.message })
     } else {
+      toast.success({ title: 'Prodotto pubblicato', description: 'Il tuo prodotto è ora visibile sulla mappa.' })
       router.push('/') 
       router.refresh() 
     }

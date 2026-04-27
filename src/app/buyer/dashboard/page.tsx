@@ -3,18 +3,19 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { 
-  Heart, 
-  Store, 
-  MapPin, 
-  ArrowLeft, 
-  Trash2, 
-  ShoppingBag, 
+import {
+  Heart,
+  Store,
+  MapPin,
+  Trash2,
+  ShoppingBag,
   Phone,
   Navigation,
   MessageCircle,
-  Settings
 } from 'lucide-react'
+import { AppHeader } from '@/components/layout/AppHeader'
+import { AppBottomNav } from '@/components/layout/AppBottomNav'
+import { FarmerCardSkeleton, EmptyState, LinkButton } from '@/components/ui'
 
 interface FavoriteWithProfile {
   id: string
@@ -126,72 +127,43 @@ export default function BuyerDashboard() {
     return cleaned
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#F0F7F0] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4 animate-pulse">
-          <Heart className="w-12 h-12 text-green-700" />
-          <span className="text-green-700 font-bold uppercase tracking-widest text-sm">Caricamento...</span>
-        </div>
-      </div>
-    )
-  }
 
   return (
-    <div className="min-h-screen bg-[#F0F7F0] pb-20">
-      {/* HEADER */}
-      <div className="bg-white border-b border-neutral-200 sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link 
-                href="/" 
-                className="flex items-center justify-center w-10 h-10 bg-neutral-100 rounded-full hover:bg-green-100 hover:text-green-700 transition-all"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-              <div>
-                <h1 className="text-xl sm:text-2xl font-black text-neutral-900">I Miei Preferiti</h1>
-                <p className="text-sm text-neutral-500">Le tue aziende salvate</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <span className="bg-green-100 text-green-800 text-xs font-bold px-3 py-1.5 rounded-full">
-                {favorites.length} salvati
-              </span>
-              <Link
-                href="/account/settings"
-                className="flex items-center justify-center w-10 h-10 bg-neutral-100 rounded-full text-neutral-500 hover:bg-green-100 hover:text-green-700 transition-all"
-                title="Impostazioni"
-              >
-                <Settings className="w-5 h-5" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen bg-surface-app pb-24 md:pb-0">
+      <AppHeader eyebrow="Area acquirente" title="I miei preferiti" />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-        {/* SEZIONE PREFERITI */}
-        {favorites.length === 0 ? (
-          <div className="bg-white rounded-[2.5rem] p-12 text-center border border-neutral-100 shadow-lg">
-            <div className="w-20 h-20 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Heart className="w-10 h-10 text-neutral-400" />
-            </div>
-            <h2 className="text-xl font-bold text-neutral-900 mb-2">Nessun preferito</h2>
-            <p className="text-neutral-500 mb-6">Esplora la mappa e salva le aziende che ti interessano</p>
-            <Link 
-              href="/"
-              className="inline-flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-2xl font-bold hover:bg-green-700 transition-all"
-            >
-              <MapPin className="w-4 h-4" />
-              Vai alla Mappa
-            </Link>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-ink-900 tracking-tight">I Miei Preferiti</h1>
+            <p className="text-sm text-ink-500 mt-1">Le aziende che hai salvato dalla mappa</p>
           </div>
+          <span className="inline-flex items-center gap-1.5 bg-brand-50 text-brand-700 text-xs font-semibold px-3 py-1.5 rounded-full">
+            <Heart className="w-3.5 h-3.5" /> {favorites.length} salvate
+          </span>
+        </div>
+        {/* SEZIONE PREFERITI */}
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <FarmerCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : favorites.length === 0 ? (
+          <EmptyState
+            tone="brand"
+            icon={<Heart className="w-8 h-8" />}
+            title="Nessun preferito ancora"
+            description="Esplora la mappa e salva le aziende che ti interessano. Le ritroverài qui per contattarle in un tap."
+            action={
+              <LinkButton href="/" iconLeft={<MapPin className="w-4 h-4" />}>
+                Vai alla mappa
+              </LinkButton>
+            }
+          />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {favorites.map((fav) => {
+            {favorites.map((fav, index) => {
               const profile = fav.profiles
               const avatarUrl = profile?.avatar_url || `https://ui-avatars.com/api/?name=${profile?.farm_name || profile?.full_name || 'F'}&background=15803d&color=fff&size=200`
               const waPhone = formatPhoneForWA(profile?.phone || '')
@@ -199,7 +171,8 @@ export default function BuyerDashboard() {
               return (
                 <div 
                   key={fav.id}
-                  className="bg-white rounded-[2.5rem] shadow-lg border border-neutral-100 overflow-hidden hover:shadow-xl transition-all"
+                  className="bg-white rounded-[2.5rem] shadow-lg border border-neutral-100 overflow-hidden hover:shadow-xl hover:-translate-y-0.5 transition-all animate-slide-up"
+                  style={{ animationDelay: `${Math.min(index * 60, 360)}ms` }}
                 >
                   <div className="p-5 sm:p-6">
                     <div className="flex items-start gap-4">
@@ -311,15 +284,17 @@ export default function BuyerDashboard() {
 
         {/* QUICK ACTIONS */}
         <div className="mt-12 flex flex-wrap gap-3">
-          <Link 
+          <Link
             href="/"
-            className="inline-flex items-center gap-2 bg-white border-2 border-neutral-200 text-neutral-700 px-5 py-3 rounded-2xl font-bold hover:border-green-500 hover:text-green-700 transition-all"
+            className="inline-flex items-center gap-2 bg-surface-card border border-ink-100 text-ink-700 px-5 py-3 rounded-[var(--radius-md)] font-semibold hover:border-brand-300 hover:text-brand-700 transition"
           >
             <Navigation className="w-4 h-4" />
             Torna alla Mappa
           </Link>
         </div>
       </div>
+
+      <AppBottomNav role="buyer" />
     </div>
   )
 }

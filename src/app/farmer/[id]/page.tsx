@@ -2,10 +2,13 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, MapPin, Store, MessageCircle, Mail, ImagePlus, Loader2 } from 'lucide-react'
+import { ArrowLeft, MapPin, Store, MessageCircle, Mail, ImagePlus, Loader2, Sprout, Compass } from 'lucide-react'
 import Link from 'next/link'
+import { useToast, ProductCardSkeleton, EmptyState, LinkButton } from '@/components/ui'
+import { getCategory } from '@/lib/categories'
 
 export default function FarmerProfile() {
+  const toast = useToast()
   const params = useParams()
   const router = useRouter()
   const id = params.id as string
@@ -114,7 +117,7 @@ export default function FarmerProfile() {
       setProducts(products.map(p => p.id === productId ? { ...p, image_url: publicUrl } : p));
       
     } catch (error: any) {
-      alert("Errore caricamento foto: " + error.message);
+      toast.error({ title: 'Caricamento foto fallito', description: error.message });
     } finally {
       setUploadingProductId(null);
     }
@@ -122,10 +125,26 @@ export default function FarmerProfile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F0F7F0] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4 animate-pulse">
-          <Store className="w-12 h-12 text-green-700" />
-          <span className="text-green-700 font-bold uppercase tracking-widest text-sm">Allestimento vetrina...</span>
+      <div className="min-h-screen bg-surface-app pb-20">
+        <div className="w-full h-64 md:h-80 bg-ink-100 relative overflow-hidden">
+          <span aria-hidden className="absolute inset-0 -translate-x-full animate-[km0-shimmer_1.4s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+        </div>
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="relative -mt-24 mb-12 bg-surface-card rounded-[var(--radius-xl)] p-8 shadow-[var(--shadow-md)] border border-ink-100">
+            <div className="flex flex-col md:flex-row gap-6 items-start">
+              <div className="w-32 h-32 rounded-full bg-ink-100 animate-pulse" />
+              <div className="flex-1 space-y-3">
+                <div className="h-7 w-3/5 bg-ink-100 rounded-full animate-pulse" />
+                <div className="h-4 w-2/3 bg-ink-100/70 rounded-full animate-pulse" />
+                <div className="h-4 w-1/2 bg-ink-100/70 rounded-full animate-pulse" />
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <ProductCardSkeleton key={i} />
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -149,10 +168,22 @@ export default function FarmerProfile() {
     <div className="min-h-screen bg-neutral-50 pb-20 font-sans">
       
       {/* COPERTINA */}
-      <div className="relative w-full h-64 md:h-80 bg-neutral-900 overflow-hidden">
+      <div className="relative w-full h-64 md:h-80 bg-ink-900 overflow-hidden">
         <img src={coverUrl} alt="Copertina Fattoria" className="w-full h-full object-cover opacity-60" />
-        <Link href="/" className="absolute top-6 left-6 z-10 flex items-center justify-center w-12 h-12 bg-white/20 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-green-800 transition-all">
-          <ArrowLeft className="w-6 h-6" />
+        <div className="absolute inset-0 bg-gradient-to-b from-ink-900/40 via-transparent to-ink-900/50" />
+        <Link
+          href="/"
+          className="absolute top-6 left-6 z-10 flex items-center justify-center w-11 h-11 bg-white/20 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-brand-700 transition"
+          aria-label="Torna alla mappa"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </Link>
+        <Link
+          href="/"
+          className="absolute top-6 right-6 z-10 inline-flex items-center gap-2 px-3.5 py-2 bg-white/15 backdrop-blur-md text-white rounded-full text-xs font-semibold tracking-wide hover:bg-white hover:text-brand-700 transition shadow-[var(--shadow-sm)]"
+        >
+          <Sprout className="w-4 h-4" />
+          <span>Su <span className="font-bold">farm2you</span> · mercato km0</span>
         </Link>
       </div>
 
@@ -217,19 +248,29 @@ export default function FarmerProfile() {
         </div>
 
         {products.length === 0 ? (
-          <div className="bg-white rounded-3xl p-12 text-center border-2 border-dashed border-neutral-200">
-            <Store className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-neutral-900">Nessun prodotto disponibile</h3>
-            <p className="text-neutral-500 mt-2">Questa azienda non ha ancora inserito prodotti.</p>
-          </div>
+          <EmptyState
+            icon={<Store className="w-8 h-8" />}
+            title="Nessun prodotto disponibile"
+            description="Questa azienda non ha ancora inserito prodotti. Torna presto per scoprire il suo raccolto."
+            action={
+              <LinkButton href="/" variant="secondary" iconLeft={<ArrowLeft className="w-4 h-4" />}>
+                Torna alla mappa
+              </LinkButton>
+            }
+          />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {products.map((product) => {
+            {products.map((product, index) => {
               const imgUrl = product.image_url;
               const isUploadingThis = uploadingProductId === product.id;
+              const cat = getCategory(product.category);
 
               return (
-                <div key={product.id} className="bg-white rounded-[2rem] overflow-hidden shadow-lg border border-neutral-100 hover:shadow-xl transition-shadow group flex flex-col">
+                <div
+                  key={product.id}
+                  className="bg-white rounded-[2rem] overflow-hidden shadow-lg border border-neutral-100 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 group flex flex-col animate-slide-up"
+                  style={{ animationDelay: `${Math.min(index * 60, 480)}ms` }}
+                >
                   
                   {/* ZONA IMMAGINE PRODOTTO */}
                   <div className="aspect-square relative overflow-hidden bg-white border-b border-neutral-50 flex items-center justify-center shrink-0 group/img">
@@ -273,10 +314,11 @@ export default function FarmerProfile() {
                   </div>
 
                   <div className="p-6 flex flex-col flex-1">
-                    <h3 className="font-black text-xl text-neutral-900 mb-1 capitalize">{product.product_name}</h3>
-                    <p className="text-sm font-bold text-neutral-400 uppercase tracking-widest mb-2">
-                      {product.category || 'Prodotto agricolo'}
-                    </p>
+                    <span className={`inline-flex items-center gap-1 self-start text-[10px] font-semibold uppercase tracking-[0.14em] px-2.5 py-1 rounded-full mb-3 ${cat.classes.pill}`}>
+                      <span aria-hidden>{cat.emoji}</span>
+                      {cat.label}
+                    </span>
+                    <h3 className="font-bold text-xl text-ink-900 mb-2 capitalize tracking-tight">{product.product_name}</h3>
                     {product.description && (
                       <p className="text-sm text-neutral-600 mb-4 flex-1 whitespace-pre-line">
                         {product.description}
@@ -296,6 +338,49 @@ export default function FarmerProfile() {
             })}
           </div>
         )}
+
+        {/* CTA KM0 per cold-landing */}
+        <section className="mt-16 relative overflow-hidden rounded-[var(--radius-xl)] bg-gradient-to-br from-brand-600 to-brand-700 text-white p-8 sm:p-10 shadow-[var(--shadow-lg)]">
+          <div
+            aria-hidden
+            className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-accent-400/20 blur-3xl"
+          />
+          <div
+            aria-hidden
+            className="absolute -bottom-24 -left-10 w-72 h-72 rounded-full bg-brand-300/20 blur-3xl"
+          />
+          <div className="relative flex flex-col md:flex-row items-start md:items-center gap-6">
+            <div className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur-sm flex items-center justify-center shrink-0">
+              <Compass className="w-7 h-7 text-white" />
+            </div>
+            <div className="flex-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/70">
+                Scopri farm2you
+              </p>
+              <h3 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">
+                Altre aziende a km zero ti aspettano
+              </h3>
+              <p className="text-sm text-white/80 mt-2 max-w-xl leading-relaxed">
+                Esplora la mappa dei produttori locali, scopri prodotti di stagione e sostieni
+                la filiera corta del tuo territorio. Senza intermediari.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+              <Link
+                href="/"
+                className="inline-flex items-center justify-center gap-2 px-5 h-12 rounded-[var(--radius-md)] bg-white text-brand-700 font-semibold hover:bg-accent-50 transition shadow-[var(--shadow-sm)]"
+              >
+                <MapPin className="w-4 h-4" /> Apri la mappa
+              </Link>
+              <Link
+                href="/login?role=farmer"
+                className="inline-flex items-center justify-center gap-2 px-5 h-12 rounded-[var(--radius-md)] bg-white/10 text-white border border-white/30 font-semibold hover:bg-white/20 transition"
+              >
+                <Sprout className="w-4 h-4" /> Sei un produttore?
+              </Link>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   )

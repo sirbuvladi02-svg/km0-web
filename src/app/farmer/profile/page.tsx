@@ -4,8 +4,10 @@ import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save, User, Phone, ImagePlus, FileText, Loader2, Store, AlertCircle, ChevronDown } from 'lucide-react'
 import Link from 'next/link'
+import { useToast } from '@/components/ui'
 
 export default function FarmerProfile() {
+  const toast = useToast()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   
@@ -94,7 +96,7 @@ export default function FarmerProfile() {
 
   async function updateProfile() {
     if (!validateForm()) {
-      alert("Ci sono degli errori evidenziati in rosso da correggere.")
+      toast.warning({ title: 'Controlla i campi', description: 'Ci sono degli errori evidenziati in rosso da correggere.' })
       return
     }
 
@@ -111,7 +113,7 @@ export default function FarmerProfile() {
       const { error: uploadError } = await supabase.storage.from('products').upload(fileName, imageFile)
 
       if (uploadError) {
-        alert("Errore caricamento foto: " + uploadError.message)
+        toast.error({ title: 'Caricamento foto fallito', description: uploadError.message })
         setSaving(false)
         return
       }
@@ -132,9 +134,9 @@ export default function FarmerProfile() {
     }).eq('id', user.id)
 
     if (error) {
-      alert("Errore salvataggio: " + error.message)
+      toast.error({ title: 'Salvataggio non riuscito', description: error.message })
     } else {
-      alert("Profilo salvato correttamente!")
+      toast.success({ title: 'Profilo aggiornato', description: 'I clienti vedranno le tue nuove informazioni.' })
       router.push('/farmer/dashboard')
     }
     setSaving(false)

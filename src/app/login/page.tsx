@@ -4,8 +4,10 @@ import { supabase } from '@/lib/supabase'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Sprout, Mail, Lock, ArrowLeft, Loader2, User, X, KeyRound, CheckCircle2, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
+import { useToast } from '@/components/ui'
 
 function LoginForm() {
+  const toast = useToast()
   const searchParams = useSearchParams()
   const router = useRouter() // <-- Aggiunto router di Next.js
   
@@ -40,7 +42,7 @@ function LoginForm() {
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/auth/callback` },
     })
-    if (error) alert(error.message)
+    if (error) toast.error({ title: 'Login Google non riuscito', description: error.message })
   }
 
   const handleAuth = async (e: FormEvent<HTMLFormElement>) => {
@@ -62,12 +64,18 @@ function LoginForm() {
       })
 
       if (error) {
-        alert("Errore registrazione: " + error.message)
+        toast.error({ title: 'Registrazione non riuscita', description: error.message })
       } else {
         if (data.user?.identities?.length === 0) {
-          alert("Questo account esiste già! Ti riporto alla pagina di accesso.")
+          toast.info({
+            title: 'Account già esistente',
+            description: 'Accedi con le tue credenziali o usa "Password dimenticata".',
+          })
         } else {
-          alert("Registrazione completata! Ora puoi accedere.")
+          toast.success({
+            title: 'Registrazione completata',
+            description: 'Ora puoi accedere con le tue credenziali.',
+          })
         }
         
         setIsSignUp(false)
@@ -144,7 +152,7 @@ function LoginForm() {
   }
 
   return (
-    <div className="bg-white p-8 md:p-12 rounded-[3rem] shadow-2xl max-w-md w-full border border-green-100">
+    <div className="bg-white p-8 md:p-12 rounded-[3rem] shadow-2xl max-w-md w-full border border-green-100 animate-fade-in">
       <div className="text-center mb-10">
         <div className="w-16 h-16 bg-green-700 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-green-200">
           <Sprout className="w-10 h-10 text-white" />
@@ -235,18 +243,17 @@ function LoginForm() {
 
       {!isSignUp && forgotOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-surface-overlay)] backdrop-blur-sm p-4 animate-fade-in"
           onClick={toggleForgotSection}
         >
           <div
-            className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl border border-green-100 p-8 md:p-10 relative"
+            className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl border border-green-100 p-8 md:p-10 relative animate-pop-in"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               type="button"
               onClick={toggleForgotSection}
               className="absolute top-5 right-5 w-10 h-10 rounded-full bg-neutral-100 text-neutral-500 hover:bg-red-50 hover:text-red-600 transition flex items-center justify-center"
-              aria-label="Chiudi"
             >
               <X className="w-5 h-5" />
             </button>
