@@ -6,6 +6,7 @@ import {
   Trash2, Package, Loader2, Sprout, LogOut, ArrowLeft, User, Pencil, ImagePlus
 } from 'lucide-react'
 import Link from 'next/link'
+import ChangePasswordCard from '@/components/ChangePasswordCard'
 
 type EditFormState = {
   id: string
@@ -215,6 +216,7 @@ export default function FarmerDashboard() {
               <h2 className="text-2xl font-black uppercase tracking-tighter text-center leading-none">Profilo<br/>Azienda</h2>
             </Link>
 
+            <ChangePasswordCard email={userEmail} variant="compact" />
           </div>
 
           {/* LISTA PRODOTTI */}

@@ -15,6 +15,11 @@ function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [isSignUp, setIsSignUp] = useState(false)
   const [role, setRole] = useState<'farmer' | 'buyer'>('buyer')
+  const [authError, setAuthError] = useState<string | null>(null)
+  const [forgotOpen, setForgotOpen] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotLoading, setForgotLoading] = useState(false)
+  const [forgotFeedback, setForgotFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => {
     const roleParam = searchParams.get('role')
@@ -22,6 +27,13 @@ function LoginForm() {
       setRole(roleParam)
     }
   }, [searchParams])
+
+  useEffect(() => {
+    if (isSignUp) {
+      setForgotOpen(false)
+      setAuthError(null)
+    }
+  }, [isSignUp])
 
   const loginWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
@@ -34,6 +46,7 @@ function LoginForm() {
   const handleAuth = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setLoading(true)
+    setAuthError(null)
 
     if (isSignUp) {
       // TENTATIVO DI REGISTRAZIONE
@@ -67,7 +80,10 @@ function LoginForm() {
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password })
       
       if (authError) {
-        alert("Credenziali non valide o account non confermato.")
+        setAuthError('Credenziali non valide o account non confermato. Hai dimenticato la password?')
+        setForgotOpen(true)
+        setForgotEmail(email)
+        setForgotFeedback(null)
       } else if (authData.user) {
         const { data: profile } = await supabase
           .from('profiles')
@@ -79,12 +95,52 @@ function LoginForm() {
         if (profile?.role === 'farmer') {
           router.push('/farmer/dashboard');
         } else {
-          router.push('/');
+          router.push('/')
         }
         router.refresh(); // Forza l'aggiornamento dei dati sulla pagina
       }
     }
     setLoading(false)
+  }
+
+  const handleForgotPassword = async () => {
+    if (!forgotEmail.trim()) {
+      setForgotFeedback({ type: 'error', text: 'Inserisci un email valida.' })
+      return
+    }
+
+    setForgotLoading(true)
+    setForgotFeedback(null)
+
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail.trim() })
+      })
+
+      const data = await response.json()
+      const text = data.message || data.error || 'Operazione completata.'
+
+      setForgotFeedback({ type: response.ok ? 'success' : 'error', text })
+    } catch (error) {
+      console.error('[Login] Forgot password request failed', error)
+      setForgotFeedback({ type: 'error', text: 'Errore inatteso, riprova tra qualche secondo.' })
+    } finally {
+      setForgotLoading(false)
+    }
+  }
+
+  const toggleForgotSection = () => {
+    setForgotOpen(prev => {
+      const next = !prev
+      if (next) {
+        setForgotEmail(email)
+      } else {
+        setForgotFeedback(null)
+      }
+      return next
+    })
   }
 
   return (
@@ -154,10 +210,58 @@ function LoginForm() {
           />
         </div>
 
+        {!isSignUp && (
+          <div className="flex flex-col gap-2">
+            {authError && (
+              <p className="text-sm font-semibold text-red-600 bg-red-50 border border-red-100 rounded-2xl px-4 py-2">
+                {authError}
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={toggleForgotSection}
+              className="self-end text-xs font-black uppercase tracking-[0.3em] text-green-700 hover:text-green-800"
+            >
+              Password dimenticata?
+            </button>
+          </div>
+        )}
+
         <button disabled={loading} className="w-full bg-green-700 text-white py-5 rounded-2xl font-black text-lg hover:bg-green-800 transition-all shadow-xl shadow-green-100 flex items-center justify-center active:scale-95">
           {loading ? <Loader2 className="animate-spin" /> : (isSignUp ? 'Registrati ora' : 'Accedi')}
         </button>
       </form>
+
+      {!isSignUp && forgotOpen && (
+        <div className="mt-6 p-5 bg-neutral-50 border border-neutral-100 rounded-3xl space-y-4">
+          <div>
+            <p className="text-sm font-bold text-neutral-700">Reset password</p>
+            <p className="text-xs text-neutral-500">Inserisci la tua email, riceverai un link per impostare una nuova password.</p>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <input
+              type="email"
+              value={forgotEmail}
+              onChange={(e) => setForgotEmail(e.target.value)}
+              placeholder="esempio@mail.com"
+              className="flex-1 p-4 bg-white border-2 border-neutral-100 rounded-2xl text-neutral-900 placeholder:text-neutral-400 font-medium focus:border-green-700 outline-none transition-all"
+            />
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              disabled={forgotLoading}
+              className="px-6 py-4 rounded-2xl font-black uppercase tracking-widest text-sm bg-green-700 text-white hover:bg-green-800 transition disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {forgotLoading ? 'Invio…' : 'Invia Link'}
+            </button>
+          </div>
+          {forgotFeedback && (
+            <p className={`text-xs font-semibold ${forgotFeedback.type === 'success' ? 'text-green-700' : 'text-red-600'}`}>
+              {forgotFeedback.text}
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="mt-8 text-center border-t border-neutral-50 pt-8">
         <button type="button" onClick={() => setIsSignUp(!isSignUp)} className="text-green-700 font-black text-sm uppercase tracking-widest hover:underline decoration-2 underline-offset-4">

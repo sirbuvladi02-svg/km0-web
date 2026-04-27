@@ -721,7 +721,7 @@ export default function MapComponent({ locations }: { locations: any[] }) {
                   </div>
 
                   {/* BOTTONI AZIONE */}
-                  <div className="p-4 sm:p-5 border-t border-neutral-100 flex gap-3">
+                  <div className="p-4 sm:p-5 border-t border-neutral-100 flex gap-3 flex-wrap sm:flex-nowrap">
                     {(() => {
                       const farmerUserId = farmer.products.find((p: any) => p.user_id)?.user_id || farmer.id;
                       const isValidId = farmerUserId && farmerUserId.length >= 8 && !farmerUserId.includes(',');
@@ -744,7 +744,7 @@ export default function MapComponent({ locations }: { locations: any[] }) {
                       );
                     })()}
                     
-                    {phone ? (
+                    {phone && (
                       <a 
                         href={`https://wa.me/${phone.replace(/\D/g, '')}`}
                         target="_blank"
@@ -754,17 +754,16 @@ export default function MapComponent({ locations }: { locations: any[] }) {
                         <Phone className="w-4 h-4" />
                         WhatsApp
                       </a>
-                    ) : (
-                      <a 
-                        href={`https://www.google.com/maps/dir/?api=1&destination=${farmer.lat},${farmer.lng}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex-1 bg-neutral-100 text-neutral-600 text-center font-bold py-3.5 rounded-2xl text-sm hover:bg-neutral-200 transition-all active:scale-95 flex items-center justify-center gap-2 no-underline border border-neutral-200"
-                      >
-                        <Navigation className="w-4 h-4" />
-                        Portami
-                      </a>
                     )}
+                    <a 
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${farmer.lat},${farmer.lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 bg-neutral-100 text-neutral-600 text-center font-bold py-3.5 rounded-2xl text-sm hover:bg-neutral-200 transition-all active:scale-95 flex items-center justify-center gap-2 no-underline border border-neutral-200"
+                    >
+                      <Navigation className="w-4 h-4" />
+                      Portami
+                    </a>
                   </div>
                 </div>
               );

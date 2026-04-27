@@ -14,6 +14,7 @@ import {
   Navigation,
   MessageCircle
 } from 'lucide-react'
+import ChangePasswordCard from '@/components/ChangePasswordCard'
 
 interface FavoriteWithProfile {
   id: string
@@ -301,8 +302,13 @@ export default function BuyerDashboard() {
           </div>
         )}
 
+        {/* SICUREZZA ACCOUNT */}
+        <div className="mt-12">
+          <ChangePasswordCard email={user?.email || null} />
+        </div>
+
         {/* QUICK ACTIONS */}
-        <div className="mt-12 flex flex-wrap gap-3">
+        <div className="mt-8 flex flex-wrap gap-3">
           <Link 
             href="/"
             className="inline-flex items-center gap-2 bg-white border-2 border-neutral-200 text-neutral-700 px-5 py-3 rounded-2xl font-bold hover:border-green-500 hover:text-green-700 transition-all"
