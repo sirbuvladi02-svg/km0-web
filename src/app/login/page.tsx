@@ -2,7 +2,7 @@
 import { useState, useEffect, Suspense, type FormEvent } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Sprout, Mail, Lock, ArrowLeft, Loader2, User } from 'lucide-react'
+import { Sprout, Mail, Lock, ArrowLeft, Loader2, User, X, KeyRound, CheckCircle2, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 
 function LoginForm() {
@@ -213,14 +213,15 @@ function LoginForm() {
         {!isSignUp && (
           <div className="flex flex-col gap-2">
             {authError && (
-              <p className="text-sm font-semibold text-red-600 bg-red-50 border border-red-100 rounded-2xl px-4 py-2">
-                {authError}
+              <p className="text-sm font-semibold text-red-600 bg-red-50 border border-red-100 rounded-2xl px-4 py-3 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                <span>{authError}</span>
               </p>
             )}
             <button
               type="button"
               onClick={toggleForgotSection}
-              className="self-end text-xs font-black uppercase tracking-[0.3em] text-green-700 hover:text-green-800"
+              className="self-end text-xs font-black uppercase tracking-[0.3em] text-green-700 hover:text-green-800 hover:underline decoration-2 underline-offset-4"
             >
               Password dimenticata?
             </button>
@@ -233,33 +234,81 @@ function LoginForm() {
       </form>
 
       {!isSignUp && forgotOpen && (
-        <div className="mt-6 p-5 bg-neutral-50 border border-neutral-100 rounded-3xl space-y-4">
-          <div>
-            <p className="text-sm font-bold text-neutral-700">Reset password</p>
-            <p className="text-xs text-neutral-500">Inserisci la tua email, riceverai un link per impostare una nuova password.</p>
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <input
-              type="email"
-              value={forgotEmail}
-              onChange={(e) => setForgotEmail(e.target.value)}
-              placeholder="esempio@mail.com"
-              className="flex-1 p-4 bg-white border-2 border-neutral-100 rounded-2xl text-neutral-900 placeholder:text-neutral-400 font-medium focus:border-green-700 outline-none transition-all"
-            />
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={toggleForgotSection}
+        >
+          <div
+            className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl border border-green-100 p-8 md:p-10 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               type="button"
-              onClick={handleForgotPassword}
-              disabled={forgotLoading}
-              className="px-6 py-4 rounded-2xl font-black uppercase tracking-widest text-sm bg-green-700 text-white hover:bg-green-800 transition disabled:opacity-60 disabled:cursor-not-allowed"
+              onClick={toggleForgotSection}
+              className="absolute top-5 right-5 w-10 h-10 rounded-full bg-neutral-100 text-neutral-500 hover:bg-red-50 hover:text-red-600 transition flex items-center justify-center"
+              aria-label="Chiudi"
             >
-              {forgotLoading ? 'Invio…' : 'Invia Link'}
+              <X className="w-5 h-5" />
             </button>
+
+            <div className="text-center mb-7">
+              <div className="w-16 h-16 bg-green-700 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-green-200">
+                <KeyRound className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-2xl font-black text-neutral-900 tracking-tight">Password dimenticata?</h3>
+              <p className="text-sm text-neutral-500 font-medium mt-2 px-2">
+                Inserisci l'email del tuo account: ti invieremo un link sicuro per impostare una nuova password.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="relative">
+                <Mail className="absolute left-4 top-4 w-5 h-5 text-neutral-400" />
+                <input
+                  type="email"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  placeholder="esempio@mail.com"
+                  className="w-full p-4 pl-12 bg-neutral-50 border-2 border-neutral-100 rounded-2xl text-neutral-900 placeholder:text-neutral-400 font-medium focus:border-green-700 outline-none transition-all"
+                  autoFocus
+                />
+              </div>
+
+              {forgotFeedback && (
+                <p
+                  className={`text-sm font-semibold rounded-2xl px-4 py-3 border flex items-start gap-2 ${
+                    forgotFeedback.type === 'success'
+                      ? 'text-green-700 bg-green-50 border-green-100'
+                      : 'text-red-600 bg-red-50 border-red-100'
+                  }`}
+                >
+                  {forgotFeedback.type === 'success' ? (
+                    <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                  )}
+                  <span>{forgotFeedback.text}</span>
+                </p>
+              )}
+
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={forgotLoading}
+                className="w-full py-4 rounded-2xl font-black uppercase tracking-widest text-sm bg-green-700 text-white hover:bg-green-800 transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-green-200/50 active:scale-95"
+              >
+                {forgotLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Invia link di reset'}
+              </button>
+
+              <button
+                type="button"
+                onClick={toggleForgotSection}
+                className="w-full text-xs font-black uppercase tracking-[0.3em] text-neutral-400 hover:text-neutral-600 py-2"
+              >
+                Torna al login
+              </button>
+            </div>
           </div>
-          {forgotFeedback && (
-            <p className={`text-xs font-semibold ${forgotFeedback.type === 'success' ? 'text-green-700' : 'text-red-600'}`}>
-              {forgotFeedback.text}
-            </p>
-          )}
         </div>
       )}
 

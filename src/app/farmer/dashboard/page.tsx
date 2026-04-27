@@ -3,10 +3,9 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { 
   LayoutDashboard, PlusCircle, ShoppingBasket, 
-  Trash2, Package, Loader2, Sprout, LogOut, ArrowLeft, User, Pencil, ImagePlus
+  Trash2, Package, Loader2, Sprout, LogOut, ArrowLeft, User, Pencil, ImagePlus, Settings
 } from 'lucide-react'
 import Link from 'next/link'
-import ChangePasswordCard from '@/components/ChangePasswordCard'
 
 type EditFormState = {
   id: string
@@ -176,11 +175,18 @@ export default function FarmerDashboard() {
             <span className="text-2xl font-bold text-green-700 tracking-tighter">farm2you</span>
           </Link>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <span className="text-sm font-bold text-neutral-400 hidden sm:block uppercase tracking-widest">
               {userEmail?.split('@')[0]}
             </span>
-            <button onClick={handleLogout} className="bg-neutral-100 text-neutral-500 p-2.5 rounded-full hover:bg-red-50 hover:text-red-600 transition shadow-sm">
+            <Link
+              href="/account/settings"
+              className="bg-neutral-100 text-neutral-500 p-2.5 rounded-full hover:bg-green-50 hover:text-green-700 transition shadow-sm"
+              title="Impostazioni"
+            >
+              <Settings className="w-5 h-5" />
+            </Link>
+            <button onClick={handleLogout} className="bg-neutral-100 text-neutral-500 p-2.5 rounded-full hover:bg-red-50 hover:text-red-600 transition shadow-sm" title="Esci">
               <LogOut className="w-5 h-5" />
             </button>
           </div>
@@ -216,7 +222,6 @@ export default function FarmerDashboard() {
               <h2 className="text-2xl font-black uppercase tracking-tighter text-center leading-none">Profilo<br/>Azienda</h2>
             </Link>
 
-            <ChangePasswordCard email={userEmail} variant="compact" />
           </div>
 
           {/* LISTA PRODOTTI */}
